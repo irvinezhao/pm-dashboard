@@ -103,6 +103,8 @@ export type AppCopy = {
   searchPlaceholder: string
   searchLabel: string
   clearSearch: string
+  searchResults: string
+  noSearchResults: string
   language: string
   collapseSidebar: string
   expandSidebar: string

@@ -122,11 +122,13 @@ export function HolidayCalendar({
             <p className="eyebrow">{copy.nav.calendar}</p>
             <h2 id="holiday-calendar-title">{year} {copy.holidayCalendarTitle}</h2>
           </div>
-          <button className="section-action" type="button" onClick={() => setIsFreezeDialogOpen(true)}>
-            <Settings2 size={16} />
-            {copy.freezeConfig}
-            {freezePeriods.length > 0 && <span className="action-count">{freezePeriods.length}</span>}
-          </button>
+          {editable && (
+            <button className="section-action" type="button" onClick={() => setIsFreezeDialogOpen(true)}>
+              <Settings2 size={16} />
+              {copy.freezeConfig}
+              {freezePeriods.length > 0 && <span className="action-count">{freezePeriods.length}</span>}
+            </button>
+          )}
         </div>
         <p className="section-note">{copy.holidayCalendarHint}</p>
 
@@ -295,7 +297,7 @@ export function HolidayCalendar({
         </div>
       </section>
 
-      {isFreezeDialogOpen && (
+      {editable && isFreezeDialogOpen && (
         <div
           className="modal-backdrop"
           role="presentation"
@@ -328,7 +330,6 @@ export function HolidayCalendar({
                 <input
                   value={freezeDraft.name}
                   onChange={(event) => onFreezeDraftChange({ ...freezeDraft, name: event.target.value })}
-                  disabled={!editable}
                 />
               </label>
               <label>
@@ -337,7 +338,6 @@ export function HolidayCalendar({
                   type="date"
                   value={freezeDraft.startDate}
                   onChange={(event) => onFreezeDraftChange({ ...freezeDraft, startDate: event.target.value })}
-                  disabled={!editable}
                 />
               </label>
               <label>
@@ -346,7 +346,6 @@ export function HolidayCalendar({
                   type="date"
                   value={freezeDraft.endDate}
                   onChange={(event) => onFreezeDraftChange({ ...freezeDraft, endDate: event.target.value })}
-                  disabled={!editable}
                 />
               </label>
               <div className="form-actions">
@@ -368,7 +367,7 @@ export function HolidayCalendar({
                     <strong>{period.name}</strong>
                     <span>{period.startDate} → {period.endDate}</span>
                   </div>
-                  <button type="button" aria-label={copy.deleteFreezePeriod} onClick={() => onDeleteFreezePeriod(period.id)} disabled={!editable}>
+                  <button type="button" aria-label={copy.deleteFreezePeriod} onClick={() => onDeleteFreezePeriod(period.id)}>
                     <Trash2 size={16} />
                   </button>
                 </article>

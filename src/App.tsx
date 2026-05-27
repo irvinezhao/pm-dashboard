@@ -3,7 +3,6 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
-  Clock3,
   Command,
   CopyPlus,
   Edit3,
@@ -140,6 +139,7 @@ function App() {
   const calendarYear = new Date().getFullYear()
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0]
   const selectedVersion = findVersionById(selectedProject.versions, selectedVersionId) ?? findFirstVersion(selectedProject.versions)
+  const normalizedQuery = query.trim().toLowerCase()
 
   useEffect(() => {
     saveProjects(projects)
@@ -197,9 +197,42 @@ function App() {
     [projects, selectedProject.id],
   )
 
-  const visibleRequirementRecords = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
+  const filteredProjects = useMemo(() => {
+    if (normalizedQuery.length === 0) {
+      return projects
+    }
 
+    return projects.filter((project) => {
+      const searchable = [
+        project.name,
+        project.owner,
+        project.productLine,
+      ]
+        .join(' ')
+        .toLowerCase()
+
+      return searchable.includes(normalizedQuery) || project.versions.some((version) => versionMatchesQuery(version, normalizedQuery))
+    })
+  }, [normalizedQuery, projects])
+
+  const visibleVersionRecords = useMemo(() => {
+    if (normalizedQuery.length === 0) {
+      return allVersionRecords
+    }
+
+    return allVersionRecords.filter((record) => {
+      const searchable = [
+        record.projectName,
+        record.parentName,
+      ]
+        .join(' ')
+        .toLowerCase()
+
+      return searchable.includes(normalizedQuery) || versionMatchesQuery(record.version, normalizedQuery)
+    })
+  }, [allVersionRecords, normalizedQuery])
+
+  const visibleRequirementRecords = useMemo(() => {
     return allRequirementRecords.filter((record) => {
       if (normalizedQuery.length === 0) {
         return true
@@ -221,7 +254,7 @@ function App() {
 
       return searchable.includes(normalizedQuery)
     })
-  }, [allRequirementRecords, query])
+  }, [allRequirementRecords, normalizedQuery])
 
   const productionDateRecords = useMemo<ProductionDateRecord[]>(
     () =>
@@ -256,13 +289,11 @@ function App() {
   }, [allRequirementRecords, t.unassigned])
 
   const filteredVersions = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
-
     return selectedProject.versions.filter((version) => {
       const matchesStage = stageFilter === 'all' || version.stage === stageFilter
       return matchesStage && (normalizedQuery.length === 0 || versionMatchesQuery(version, normalizedQuery))
     })
-  }, [query, selectedProject, stageFilter])
+  }, [normalizedQuery, selectedProject, stageFilter])
 
   const navigateToView = (view: ViewKey) => {
     const targetHash = getHashForView(view)
@@ -788,15 +819,14 @@ function App() {
             </div>
             <div className="version-inline-actions">
               <span className={`stage-pill ${version.stage}`}>{t.stageMap[version.stage]}</span>
-              {canCreateSubVersion && (
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label={t.addSubVersion}
-                aria-disabled={!editable}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  openVersionForm(version.id)
+              {editable && canCreateSubVersion && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  aria-label={t.addSubVersion}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    openVersionForm(version.id)
                   }}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -809,44 +839,46 @@ function App() {
                   <Plus size={16} />
                 </span>
               )}
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label={t.editVersion}
-                aria-disabled={!editable}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  editVersion(version)
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    event.stopPropagation()
-                    editVersion(version)
-                  }
-                }}
-              >
-                <Edit3 size={16} />
-              </span>
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label={t.deleteVersion}
-                aria-disabled={!editable}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  deleteVersion(version.id)
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    event.stopPropagation()
-                    deleteVersion(version.id)
-                  }
-                }}
-              >
-                <Trash2 size={16} />
-              </span>
+              {editable && (
+                <>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label={t.editVersion}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      editVersion(version)
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        editVersion(version)
+                      }
+                    }}
+                  >
+                    <Edit3 size={16} />
+                  </span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label={t.deleteVersion}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      deleteVersion(version.id)
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        deleteVersion(version.id)
+                      }
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </span>
+                </>
+              )}
             </div>
           </button>
           <div className="version-meta">
@@ -873,14 +905,16 @@ function App() {
           <p className="eyebrow">{t.projectConfig}</p>
           <h2 id="project-config-title">{selectedProject.name}</h2>
         </div>
-        <button className="section-action" type="button" onClick={openProjectForm} disabled={!editable}>
-          <Plus size={16} />
-          {t.addProject}
-        </button>
+        {editable && (
+          <button className="section-action" type="button" onClick={openProjectForm}>
+            <Plus size={16} />
+            {t.addProject}
+          </button>
+        )}
       </div>
       <p className="section-note">{t.projectConfigHint}</p>
 
-      {isProjectFormOpen && (
+      {editable && isProjectFormOpen && (
         <div className="project-form">
           <label>
             <span>{t.projectName}</span>
@@ -905,7 +939,7 @@ function App() {
             />
           </label>
           <div className="form-actions">
-            <button className="primary-action" type="button" onClick={submitProject} disabled={!editable}>
+            <button className="primary-action" type="button" onClick={submitProject}>
               <Plus size={16} />
               {editingProjectId ? t.updateProject : t.saveProject}
             </button>
@@ -917,7 +951,8 @@ function App() {
       )}
 
       <div className="project-list">
-        {projects.map((project) => (
+        {filteredProjects.length === 0 && <p className="empty-state">{t.noSearchResults}</p>}
+        {filteredProjects.map((project) => (
           <article
             className={project.id === selectedProject.id ? 'project-manage-row selected' : 'project-manage-row'}
             key={project.id}
@@ -930,19 +965,18 @@ function App() {
               </span>
               {project.id === selectedProject.id && <span className="status-pill good">{t.selected}</span>}
             </button>
-            <div className="row-actions">
-              <button type="button" aria-label={t.editProject} onClick={() => editProject(project)} disabled={!editable}>
-                <Edit3 size={16} />
-              </button>
-              <button
-                type="button"
-                aria-label={t.deleteProject}
-                onClick={() => deleteProject(project.id)}
-                disabled={!editable || projects.length <= 1}
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
+            {editable && (
+              <div className="row-actions">
+                <button type="button" aria-label={t.editProject} onClick={() => editProject(project)}>
+                  <Edit3 size={16} />
+                </button>
+                {projects.length > 1 && (
+                  <button type="button" aria-label={t.deleteProject} onClick={() => deleteProject(project.id)}>
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            )}
           </article>
         ))}
       </div>
@@ -964,10 +998,12 @@ function App() {
           <h2 id="version-title">{t.activeVersion}</h2>
         </div>
         <div className="section-heading-actions">
-          <button className="section-action" type="button" onClick={() => openVersionForm()} disabled={!editable}>
-            <Plus size={16} />
-            {t.addVersion}
-          </button>
+          {editable && (
+            <button className="section-action" type="button" onClick={() => openVersionForm()}>
+              <Plus size={16} />
+              {t.addVersion}
+            </button>
+          )}
           <div className="segmented-control" aria-label={t.stage}>
             <button className={stageFilter === 'all' ? 'selected' : ''} type="button" onClick={() => setStageFilter('all')}>
               {t.allStages}
@@ -986,7 +1022,7 @@ function App() {
         </div>
       </div>
 
-      {isVersionFormOpen && (
+      {editable && isVersionFormOpen && (
         <div className="version-form" data-testid="version-form">
           <label>
             <span>{t.versionName}</span>
@@ -1023,7 +1059,7 @@ function App() {
             </select>
           </label>
           <div className="form-actions">
-            <button className="primary-action" type="button" onClick={submitVersion} disabled={!editable}>
+            <button className="primary-action" type="button" onClick={submitVersion}>
               <CheckCircle2 size={16} />
               {editingVersionId ? t.updateVersion : t.saveVersion}
             </button>
@@ -1052,14 +1088,16 @@ function App() {
           <p className="eyebrow">{t.requirements}</p>
           <h2 id="requirement-title">{selectedVersion ? `${selectedVersion.name} · ${t.demandList}` : t.demandList}</h2>
         </div>
-        <button className="section-action" type="button" onClick={openRequirementForm} disabled={!editable || !selectedVersion}>
-          <Plus size={16} />
-          {t.addDemand}
-        </button>
+        {editable && selectedVersion && (
+          <button className="section-action" type="button" onClick={openRequirementForm}>
+            <Plus size={16} />
+            {t.addDemand}
+          </button>
+        )}
       </div>
       <p className="section-note">{t.demandHint}</p>
 
-      {isRequirementFormOpen && (
+      {editable && isRequirementFormOpen && (
         <div className="requirement-form" data-testid="requirement-form">
           <label>
             <span>{t.demandCode}</span>
@@ -1091,7 +1129,7 @@ function App() {
             />
           </label>
           <div className="form-actions">
-            <button className="primary-action" type="button" onClick={submitRequirement} disabled={!editable || !selectedVersion}>
+            <button className="primary-action" type="button" onClick={submitRequirement} disabled={!selectedVersion}>
               <Plus size={16} />
               {editingRequirementTarget ? t.updateDemand : t.saveDemand}
             </button>
@@ -1118,19 +1156,25 @@ function App() {
                 </a>
               )}
             </div>
-            <div className="row-actions">
-              {requirement.link && (
-                <a href={requirement.link} target="_blank" rel="noreferrer" aria-label={t.openLink}>
-                  <ExternalLink size={16} />
-                </a>
-              )}
-              <button type="button" aria-label={t.editDemand} onClick={() => editRequirement(requirement)} disabled={!editable}>
-                <Edit3 size={16} />
-              </button>
-              <button type="button" aria-label={t.deleteDemand} onClick={() => deleteRequirement(requirement.id)} disabled={!editable}>
-                <Trash2 size={16} />
-              </button>
-            </div>
+            {(requirement.link || editable) && (
+              <div className="row-actions">
+                {requirement.link && (
+                  <a href={requirement.link} target="_blank" rel="noreferrer" aria-label={t.openLink}>
+                    <ExternalLink size={16} />
+                  </a>
+                )}
+                {editable && (
+                  <>
+                    <button type="button" aria-label={t.editDemand} onClick={() => editRequirement(requirement)}>
+                      <Edit3 size={16} />
+                    </button>
+                    <button type="button" aria-label={t.deleteDemand} onClick={() => deleteRequirement(requirement.id)}>
+                      <Trash2 size={16} />
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </article>
         ))}
       </div>
@@ -1220,10 +1264,12 @@ function App() {
         <article className="settings-card">
           <strong>{t.resetData}</strong>
           <p>{t.resetDataHint}</p>
-          <button className="secondary-action" type="button" onClick={resetLocalData} disabled={!editable}>
-            <Trash2 size={16} />
-            {t.resetData}
-          </button>
+          {editable && (
+            <button className="secondary-action" type="button" onClick={resetLocalData}>
+              <Trash2 size={16} />
+              {t.resetData}
+            </button>
+          )}
         </article>
         <article className="settings-card user-management-card">
           <strong>{t.userManagement}</strong>
@@ -1258,9 +1304,11 @@ function App() {
               <div className="user-row" key={user.id}>
                 <span>{user.username}</span>
                 <small>{t.viewerMode}</small>
-                <button type="button" aria-label={t.deleteUser} onClick={() => deleteViewerUser(user.id)} disabled={!editable}>
-                  <Trash2 size={15} />
-                </button>
+                {editable && (
+                  <button type="button" aria-label={t.deleteUser} onClick={() => deleteViewerUser(user.id)}>
+                    <Trash2 size={15} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -1295,6 +1343,69 @@ function App() {
       onSelectVersion={(record) => selectVersionRecord(record, 'versions')}
     />
   )
+
+  const hasSearchQuery = normalizedQuery.length > 0
+  const hasSearchResults =
+    filteredProjects.length > 0 || visibleVersionRecords.length > 0 || visibleRequirementRecords.length > 0
+  const searchResultsPanel = hasSearchQuery ? (
+    <section className="section-surface search-results-panel" aria-labelledby="search-results-title">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">{t.searchLabel}</p>
+          <h2 id="search-results-title">{t.searchResults}</h2>
+        </div>
+      </div>
+      {!hasSearchResults && <p className="empty-state">{t.noSearchResults}</p>}
+      {hasSearchResults && (
+        <div className="search-result-grid">
+          {filteredProjects.length > 0 && (
+            <article>
+              <strong>{t.nav.projects}</strong>
+              {filteredProjects.slice(0, 6).map((project) => (
+                <button
+                  type="button"
+                  key={project.id}
+                  onClick={() => {
+                    selectProject(project.id)
+                    navigateToView('projects')
+                  }}
+                >
+                  <span>{project.name}</span>
+                  <small>{project.productLine || project.owner}</small>
+                </button>
+              ))}
+            </article>
+          )}
+          {visibleVersionRecords.length > 0 && (
+            <article>
+              <strong>{t.versions}</strong>
+              {visibleVersionRecords.slice(0, 6).map((record) => (
+                <button type="button" key={record.version.id} onClick={() => selectVersionRecord(record, 'versions')}>
+                  <span>{record.version.name}</span>
+                  <small>{record.projectName} · {t.stageMap[record.version.stage]}</small>
+                </button>
+              ))}
+            </article>
+          )}
+          {visibleRequirementRecords.length > 0 && (
+            <article>
+              <strong>{t.requirements}</strong>
+              {visibleRequirementRecords.slice(0, 6).map((record) => (
+                <button
+                  type="button"
+                  key={`${record.version.id}-${record.requirement.id}`}
+                  onClick={() => selectVersionRecord(record, 'versions')}
+                >
+                  <span>{record.requirement.code}</span>
+                  <small>{record.requirement.title}</small>
+                </button>
+              ))}
+            </article>
+          )}
+        </div>
+      )}
+    </section>
+  ) : null
 
   const viewIntroMap: Record<ViewKey, { eyebrow: string; title: string; copy: string }> = {
     dashboard: { eyebrow: t.heroEyebrow, title: t.heroTitle, copy: t.heroCopy },
@@ -1465,24 +1576,6 @@ function App() {
             )
           })}
         </nav>
-
-        <div className="sidebar-panel">
-          <div className="panel-header">
-            <Rocket size={16} />
-            <span>{t.currentStage}</span>
-          </div>
-          <p>{selectedVersion ? `${selectedVersion.name} · ${t.stageMap[selectedVersion.stage]}` : t.noVersions}</p>
-          <button
-            type="button"
-            onClick={() => {
-              setStageFilter(selectedVersion && stages.includes(selectedVersion.stage) ? selectedVersion.stage : 'all')
-              navigateToView('versions')
-            }}
-          >
-            {t.activeVersion}
-            <Clock3 size={15} />
-          </button>
-        </div>
       </aside>
 
       <section className="workspace">
@@ -1552,287 +1645,8 @@ function App() {
           </div>
         </section>
 
-        {activeView === 'dashboard' ? (
-          <>
-        <section className="metric-grid" aria-label="PM metrics">
-          <MetricCard label={t.metrics.projects} value={projects.length.toString()} icon={CopyPlus} />
-          <MetricCard label={t.metrics.versions} value={allVersionRecords.length.toString()} icon={CalendarDays} />
-          <MetricCard label={t.metrics.requirements} value={portfolioStats.requirementCount.toString()} icon={ListChecks} />
-          <MetricCard label={t.metrics.production} value={portfolioStats.productionCount.toString()} icon={Rocket} />
-        </section>
-
-        {ganttPanel}
-
-        <section className="pm-grid">
-          <section className="section-surface project-board" aria-labelledby="project-config-title">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">{t.projectConfig}</p>
-                <h2 id="project-config-title">{selectedProject.name}</h2>
-              </div>
-              <button className="section-action" type="button" onClick={openProjectForm} disabled={!editable}>
-                <Plus size={16} />
-                {t.addProject}
-              </button>
-            </div>
-            <p className="section-note">{t.projectConfigHint}</p>
-
-            {isProjectFormOpen && (
-              <div className="project-form">
-                <label>
-                  <span>{t.projectName}</span>
-                  <input
-                    ref={projectNameInputRef}
-                    value={projectDraft.name}
-                    onChange={(event) => setProjectDraft({ ...projectDraft, name: event.target.value })}
-                  />
-                </label>
-                <label>
-                  <span>{t.productLine}</span>
-                  <input
-                    value={projectDraft.productLine}
-                    onChange={(event) => setProjectDraft({ ...projectDraft, productLine: event.target.value })}
-                  />
-                </label>
-                <label>
-                  <span>{t.owner}</span>
-                  <input
-                    value={projectDraft.owner}
-                    onChange={(event) => setProjectDraft({ ...projectDraft, owner: event.target.value })}
-                  />
-                </label>
-                <div className="form-actions">
-                  <button className="primary-action" type="button" onClick={submitProject} disabled={!editable}>
-                    <Plus size={16} />
-                    {editingProjectId ? t.updateProject : t.saveProject}
-                  </button>
-                  <button className="secondary-action" type="button" onClick={resetProjectDraft}>
-                    {t.cancel}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="project-list">
-              {projects.map((project) => (
-                <article
-                  className={project.id === selectedProject.id ? 'project-manage-row selected' : 'project-manage-row'}
-                  key={project.id}
-                >
-                  <button className="project-row-main" type="button" onClick={() => selectProject(project.id)}>
-                    <span className="project-initial">{project.name.slice(0, 3)}</span>
-                    <span className="project-copy">
-                      <strong>{project.name}</strong>
-                      <span>{project.productLine} · {project.owner}</span>
-                    </span>
-                    {project.id === selectedProject.id && <span className="status-pill good">{t.selected}</span>}
-                  </button>
-                  <div className="row-actions">
-                    <button type="button" aria-label={t.editProject} onClick={() => editProject(project)} disabled={!editable}>
-                      <Edit3 size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t.deleteProject}
-                      onClick={() => deleteProject(project.id)}
-                      disabled={!editable || projects.length <= 1}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            <div className="project-summary">
-              <InfoLine label={t.owner} value={selectedProject.owner} />
-              <InfoLine label={t.productLine} value={selectedProject.productLine} />
-              <InfoLine label={t.versions} value={selectedProjectVersionRecords.length.toString()} />
-              <InfoLine label={t.requirements} value={selectedProjectRequirementRecords.length.toString()} />
-            </div>
-          </section>
-
-          <section className="section-surface version-panel" aria-labelledby="version-title">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">{t.versions}</p>
-                <h2 id="version-title">{t.activeVersion}</h2>
-              </div>
-              <div className="section-heading-actions">
-                <button className="section-action" type="button" onClick={() => openVersionForm()} disabled={!editable}>
-                  <Plus size={16} />
-                  {t.addVersion}
-                </button>
-                <div className="segmented-control" aria-label={t.stage}>
-                  <button className={stageFilter === 'all' ? 'selected' : ''} type="button" onClick={() => setStageFilter('all')}>
-                    {t.allStages}
-                  </button>
-                  {stages.map((stage) => (
-                    <button
-                      className={stageFilter === stage ? 'selected' : ''}
-                      type="button"
-                      key={stage}
-                      onClick={() => setStageFilter(stage)}
-                    >
-                      {t.stageMap[stage]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {isVersionFormOpen && (
-              <div className="version-form" data-testid="version-form">
-                <label>
-                  <span>{t.versionName}</span>
-                  <input
-                    ref={versionNameInputRef}
-                    value={versionDraft.name}
-                    onChange={(event) => setVersionDraft({ ...versionDraft, name: event.target.value })}
-                  />
-                </label>
-                <label>
-                  <span>{t.startDate}</span>
-                  <input
-                    type="date"
-                    value={versionDraft.startDate}
-                    onChange={(event) => setVersionDraft({ ...versionDraft, startDate: event.target.value })}
-                  />
-                </label>
-                <label>
-                  <span>{t.endDate}</span>
-                  <input
-                    type="date"
-                    value={versionDraft.endDate}
-                    onChange={(event) => setVersionDraft({ ...versionDraft, endDate: event.target.value })}
-                  />
-                </label>
-                <label>
-                  <span>{t.stage}</span>
-                  <select value={versionDraft.stage} onChange={(event) => setVersionDraft({ ...versionDraft, stage: event.target.value as Stage })}>
-                    {stages.map((stage) => (
-                      <option value={stage} key={stage}>
-                        {t.stageMap[stage]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className="form-actions">
-                  <button className="primary-action" type="button" onClick={submitVersion} disabled={!editable}>
-                    <CheckCircle2 size={16} />
-                    {editingVersionId ? t.updateVersion : t.saveVersion}
-                  </button>
-                  <button className="secondary-action" type="button" onClick={resetVersionDraft}>
-                    {t.cancel}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="version-list">
-              {filteredVersions.length === 0 && <p className="empty-state">{t.noVersions}</p>}
-              {renderVersionTree(filteredVersions)}
-            </div>
-          </section>
-
-          <section
-            className="section-surface requirement-panel"
-            aria-labelledby="requirement-title"
-            ref={requirementPanelRef}
-          >
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">{t.requirements}</p>
-                <h2 id="requirement-title">{selectedVersion ? `${selectedVersion.name} · ${t.demandList}` : t.demandList}</h2>
-              </div>
-              <button className="section-action" type="button" onClick={openRequirementForm} disabled={!editable || !selectedVersion}>
-                <Plus size={16} />
-                {t.addDemand}
-              </button>
-            </div>
-            <p className="section-note">{t.demandHint}</p>
-
-            {isRequirementFormOpen && (
-              <div className="requirement-form" data-testid="requirement-form">
-                <label>
-                  <span>{t.demandCode}</span>
-                  <input
-                    ref={requirementCodeInputRef}
-                    value={requirementDraft.code}
-                    onChange={(event) => setRequirementDraft({ ...requirementDraft, code: event.target.value })}
-                  />
-                </label>
-                <label>
-                  <span>{t.demandTitle}</span>
-                  <input
-                    value={requirementDraft.title}
-                    onChange={(event) => setRequirementDraft({ ...requirementDraft, title: event.target.value })}
-                  />
-                </label>
-                <label>
-                  <span>{t.demandLink}</span>
-                  <input
-                    value={requirementDraft.link}
-                    onChange={(event) => setRequirementDraft({ ...requirementDraft, link: event.target.value })}
-                  />
-                </label>
-                <label>
-                  <span>{t.devOwner}</span>
-                  <input
-                    value={requirementDraft.owner}
-                    onChange={(event) => setRequirementDraft({ ...requirementDraft, owner: event.target.value })}
-                  />
-                </label>
-                <div className="form-actions">
-                  <button className="primary-action" type="button" onClick={submitRequirement} disabled={!editable || !selectedVersion}>
-                    <Plus size={16} />
-                    {editingRequirementTarget ? t.updateDemand : t.saveDemand}
-                  </button>
-                  <button className="secondary-action" type="button" onClick={resetRequirementDraft}>
-                    {t.cancel}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="requirement-list">
-              {!selectedVersion && <p className="empty-state">{t.noVersions}</p>}
-              {selectedVersion?.requirements.length === 0 && <p className="empty-state">{t.noDemands}</p>}
-              {selectedVersion?.requirements.map((requirement) => (
-                <article className="requirement-row" data-requirement-id={requirement.id} key={requirement.id}>
-                  <div className="requirement-code">{requirement.code}</div>
-                  <div className="requirement-copy">
-                    <strong>{requirement.title}</strong>
-                    <span>{t.devOwner}: {requirement.owner || '-'}</span>
-                    {requirement.link && (
-                      <a href={requirement.link} target="_blank" rel="noreferrer">
-                        <Link2 size={14} />
-                        {requirement.link}
-                      </a>
-                    )}
-                  </div>
-                  <div className="row-actions">
-                    {requirement.link && (
-                      <a href={requirement.link} target="_blank" rel="noreferrer" aria-label={t.openLink}>
-                        <ExternalLink size={16} />
-                      </a>
-                    )}
-                    <button type="button" aria-label={t.editDemand} onClick={() => editRequirement(requirement)} disabled={!editable}>
-                      <Edit3 size={16} />
-                    </button>
-                    <button type="button" aria-label={t.deleteDemand} onClick={() => deleteRequirement(requirement.id)} disabled={!editable}>
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        </section>
-          </>
-        ) : (
-          activeViewContent[activeView]
-        )}
+        {searchResultsPanel}
+        {activeViewContent[activeView]}
       </section>
     </main>
   )
