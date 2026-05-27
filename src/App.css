@@ -388,6 +388,17 @@ h2 {
 .gantt-scroll {
   min-width: 0;
   overflow-x: auto;
+  cursor: grab;
+  user-select: none;
+}
+
+.gantt-scroll:active {
+  cursor: grabbing;
+}
+
+.gantt-track-window {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .gantt-axis,
@@ -470,6 +481,7 @@ h2 {
   background:
     linear-gradient(90deg, rgba(217, 224, 227, 0.7) 1px, transparent 1px) 0 0 / var(--day-width, 28px) 100%,
     #ffffff;
+  will-change: transform;
 }
 
 .gantt-bar {

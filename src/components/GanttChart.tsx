@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useRef, useState, type CSSProperties, type PointerEvent, type UIEvent } from 'react'
 import type { AppCopy, Lang, VersionRecord } from '../types'
 
 const dayMs = 24 * 60 * 60 * 1000
@@ -39,6 +39,8 @@ const formatDate = (date: Date, language: Lang) => {
 }
 
 export function GanttChart({ records, copy, language, onSelectVersion }: GanttChartProps) {
+  const dragStateRef = useRef<{ pointerId: number; startX: number; startScrollLeft: number } | null>(null)
+  const [timelineScrollLeft, setTimelineScrollLeft] = useState(0)
   const projectOrder = new Map<string, number>()
   const recordOrder = new Map<string, number>()
   records.forEach((record, index) => {
@@ -103,6 +105,40 @@ export function GanttChart({ records, copy, language, onSelectVersion }: GanttCh
     }
   })
 
+  const handleTimelineScroll = (event: UIEvent<HTMLDivElement>) => {
+    setTimelineScrollLeft(event.currentTarget.scrollLeft)
+  }
+
+  const startTimelineDrag = (event: PointerEvent<HTMLDivElement>) => {
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startScrollLeft: event.currentTarget.scrollLeft,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const moveTimelineDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const dragState = dragStateRef.current
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return
+    }
+
+    event.currentTarget.scrollLeft = dragState.startScrollLeft - (event.clientX - dragState.startX)
+  }
+
+  const stopTimelineDrag = (event: PointerEvent<HTMLDivElement>) => {
+    if (dragStateRef.current?.pointerId === event.pointerId) {
+      dragStateRef.current = null
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const trackStyle = {
+    width: timelineWidth,
+    transform: `translateX(-${timelineScrollLeft}px)`,
+  } as CSSProperties
+
   return (
     <section className="section-surface gantt-panel" aria-labelledby="gantt-title">
       <div className="section-heading">
@@ -119,6 +155,11 @@ export function GanttChart({ records, copy, language, onSelectVersion }: GanttCh
           <div
             className="gantt-scroll"
             style={{ '--gantt-width': `${timelineWidth}px`, '--day-width': `${dayWidth}px` } as CSSProperties}
+            onScroll={handleTimelineScroll}
+            onPointerDown={startTimelineDrag}
+            onPointerMove={moveTimelineDrag}
+            onPointerUp={stopTimelineDrag}
+            onPointerCancel={stopTimelineDrag}
           >
             <div className="gantt-axis" style={{ width: timelineWidth }}>
               {ticks.map((tick) => (
@@ -144,8 +185,8 @@ export function GanttChart({ records, copy, language, onSelectVersion }: GanttCh
                   <strong style={{ paddingLeft: row.record.depth * 14 }}>{row.record.version.name}</strong>
                   {row.record.parentName && <small>{copy.subVersionOf}: {row.record.parentName}</small>}
                 </div>
-                <div className="gantt-scroll">
-                  <div className="gantt-track" style={{ width: timelineWidth }}>
+                <div className="gantt-track-window">
+                  <div className="gantt-track" style={trackStyle}>
                     <button
                       className={`gantt-bar ${row.record.version.stage}`}
                       type="button"
