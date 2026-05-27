@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
   Clock3,
   Command,
   CopyPlus,
@@ -69,6 +70,7 @@ function App() {
   const [language, setLanguage] = useState<Lang>('zh')
   const [activeView, setActiveView] = useState<ViewKey>('dashboard')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [userRole] = useState<UserRole>('owner')
   const [projects, setProjects] = useState<Project[]>(initialStoredProjects)
   const [freezePeriods, setFreezePeriods] = useState<FreezePeriod[]>(initialStoredFreezePeriods)
@@ -1180,17 +1182,40 @@ function App() {
     settings: settingsPanel,
   } satisfies Record<ViewKey, React.ReactNode>
 
+  const shellClassName = [
+    'dashboard-shell',
+    isSidebarOpen ? 'sidebar-open' : '',
+    isSidebarCollapsed ? 'sidebar-collapsed' : '',
+  ].filter(Boolean).join(' ')
+  const sidebarClassName = [
+    'sidebar',
+    isSidebarOpen ? 'open' : '',
+    isSidebarCollapsed ? 'collapsed' : '',
+  ].filter(Boolean).join(' ')
+  const sidebarToggleLabel = isSidebarCollapsed ? t.expandSidebar : t.collapseSidebar
+
   return (
-    <main className={isSidebarOpen ? 'dashboard-shell sidebar-open' : 'dashboard-shell'} lang={language === 'zh' ? 'zh-CN' : 'en'}>
-      <aside className={isSidebarOpen ? 'sidebar open' : 'sidebar'} aria-label="Main navigation">
+    <main className={shellClassName} lang={language === 'zh' ? 'zh-CN' : 'en'}>
+      <aside className={sidebarClassName} aria-label="Main navigation">
         <div className="brand-mark">
-          <div className="brand-icon">
-            <Command size={18} />
+          <div className="brand-main">
+            <div className="brand-icon">
+              <Command size={18} />
+            </div>
+            <div className="brand-copy">
+              <strong>PM Dashboard</strong>
+              <span>{t.subtitle}</span>
+            </div>
           </div>
-          <div>
-            <strong>PM Dashboard</strong>
-            <span>{t.subtitle}</span>
-          </div>
+          <button
+            className="sidebar-collapse-button"
+            type="button"
+            aria-label={sidebarToggleLabel}
+            title={sidebarToggleLabel}
+            onClick={() => setIsSidebarCollapsed((current) => !current)}
+          >
+            {isSidebarCollapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+          </button>
         </div>
 
         <nav className="nav-stack">

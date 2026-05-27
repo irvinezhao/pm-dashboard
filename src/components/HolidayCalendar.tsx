@@ -1,4 +1,5 @@
-import { Ban, Plus, Rocket, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Ban, Plus, Rocket, Settings2, Trash2, X } from 'lucide-react'
 import type { AppCopy, FreezePeriod, FreezePeriodDraft, HolidayEvent, Lang, ProductionDateRecord } from '../types'
 
 type HolidayCalendarProps = {
@@ -48,6 +49,7 @@ export function HolidayCalendar({
   onDeleteFreezePeriod,
   onSelectVersion,
 }: HolidayCalendarProps) {
+  const [isFreezeDialogOpen, setIsFreezeDialogOpen] = useState(false)
   const todayKey = getTodayKey()
   const holidaysByDate = new Map<string, HolidayEvent[]>()
   const productionByDate = new Map<string, ProductionDateRecord[]>()
@@ -63,6 +65,30 @@ export function HolidayCalendar({
   const weekdays = language === 'zh' ? zhWeekdays : enWeekdays
   const canAddFreeze = Boolean(editable && freezeDraft.name.trim() && freezeDraft.startDate && freezeDraft.endDate)
 
+  useEffect(() => {
+    if (!isFreezeDialogOpen) {
+      return undefined
+    }
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFreezeDialogOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [isFreezeDialogOpen])
+
+  const submitFreezePeriod = () => {
+    if (!canAddFreeze) {
+      return
+    }
+
+    onAddFreezePeriod()
+    setIsFreezeDialogOpen(false)
+  }
+
   return (
     <section className="calendar-view-grid">
       <section className="section-surface holiday-calendar-panel" aria-labelledby="holiday-calendar-title">
@@ -71,6 +97,11 @@ export function HolidayCalendar({
             <p className="eyebrow">{copy.nav.calendar}</p>
             <h2 id="holiday-calendar-title">{year} {copy.holidayCalendarTitle}</h2>
           </div>
+          <button className="section-action" type="button" onClick={() => setIsFreezeDialogOpen(true)}>
+            <Settings2 size={16} />
+            {copy.freezeConfig}
+            {freezePeriods.length > 0 && <span className="action-count">{freezePeriods.length}</span>}
+          </button>
         </div>
         <p className="section-note">{copy.holidayCalendarHint}</p>
 
@@ -156,59 +187,88 @@ export function HolidayCalendar({
         </div>
       </section>
 
-      <aside className="section-surface freeze-panel" aria-labelledby="freeze-title">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">{copy.freezeConfig}</p>
-            <h2 id="freeze-title">{copy.freezePeriod}</h2>
-          </div>
-        </div>
-
-        <div className="freeze-form">
-          <label>
-            <span>{copy.freezePeriodName}</span>
-            <input
-              value={freezeDraft.name}
-              onChange={(event) => onFreezeDraftChange({ ...freezeDraft, name: event.target.value })}
-            />
-          </label>
-          <label>
-            <span>{copy.freezeStart}</span>
-            <input
-              type="date"
-              value={freezeDraft.startDate}
-              onChange={(event) => onFreezeDraftChange({ ...freezeDraft, startDate: event.target.value })}
-            />
-          </label>
-          <label>
-            <span>{copy.freezeEnd}</span>
-            <input
-              type="date"
-              value={freezeDraft.endDate}
-              onChange={(event) => onFreezeDraftChange({ ...freezeDraft, endDate: event.target.value })}
-            />
-          </label>
-          <button className="primary-action" type="button" onClick={onAddFreezePeriod} disabled={!canAddFreeze}>
-            <Plus size={16} />
-            {copy.addFreezePeriod}
-          </button>
-        </div>
-
-        <div className="freeze-list">
-          {freezePeriods.length === 0 && <p className="empty-state">{copy.noFreezePeriods}</p>}
-          {freezePeriods.map((period) => (
-            <article className="freeze-row" key={period.id}>
+      {isFreezeDialogOpen && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setIsFreezeDialogOpen(false)
+            }
+          }}
+        >
+          <section className="modal-card freeze-dialog" role="dialog" aria-modal="true" aria-labelledby="freeze-title">
+            <div className="modal-header">
               <div>
-                <strong>{period.name}</strong>
-                <span>{period.startDate} → {period.endDate}</span>
+                <p className="eyebrow">{copy.freezeConfig}</p>
+                <h2 id="freeze-title">{copy.freezePeriod}</h2>
               </div>
-              <button type="button" aria-label={copy.deleteFreezePeriod} onClick={() => onDeleteFreezePeriod(period.id)} disabled={!editable}>
-                <Trash2 size={16} />
+              <button className="icon-button" type="button" aria-label={copy.cancel} onClick={() => setIsFreezeDialogOpen(false)}>
+                <X size={18} />
               </button>
-            </article>
-          ))}
+            </div>
+
+            <form
+              className="freeze-form"
+              onSubmit={(event) => {
+                event.preventDefault()
+                submitFreezePeriod()
+              }}
+            >
+              <label>
+                <span>{copy.freezePeriodName}</span>
+                <input
+                  value={freezeDraft.name}
+                  onChange={(event) => onFreezeDraftChange({ ...freezeDraft, name: event.target.value })}
+                  disabled={!editable}
+                />
+              </label>
+              <label>
+                <span>{copy.freezeStart}</span>
+                <input
+                  type="date"
+                  value={freezeDraft.startDate}
+                  onChange={(event) => onFreezeDraftChange({ ...freezeDraft, startDate: event.target.value })}
+                  disabled={!editable}
+                />
+              </label>
+              <label>
+                <span>{copy.freezeEnd}</span>
+                <input
+                  type="date"
+                  value={freezeDraft.endDate}
+                  onChange={(event) => onFreezeDraftChange({ ...freezeDraft, endDate: event.target.value })}
+                  disabled={!editable}
+                />
+              </label>
+              <div className="form-actions">
+                <button className="primary-action" type="submit" disabled={!canAddFreeze}>
+                  <Plus size={16} />
+                  {copy.addFreezePeriod}
+                </button>
+                <button className="secondary-action" type="button" onClick={() => setIsFreezeDialogOpen(false)}>
+                  {copy.cancel}
+                </button>
+              </div>
+            </form>
+
+            <div className="freeze-list">
+              {freezePeriods.length === 0 && <p className="empty-state">{copy.noFreezePeriods}</p>}
+              {freezePeriods.map((period) => (
+                <article className="freeze-row" key={period.id}>
+                  <div>
+                    <strong>{period.name}</strong>
+                    <span>{period.startDate} → {period.endDate}</span>
+                  </div>
+                  <button type="button" aria-label={copy.deleteFreezePeriod} onClick={() => onDeleteFreezePeriod(period.id)} disabled={!editable}>
+                    <Trash2 size={16} />
+                  </button>
+                </article>
+              ))}
+            </div>
+          </section>
         </div>
-      </aside>
+      )}
     </section>
   )
 }

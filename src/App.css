@@ -8,8 +8,13 @@
   color: var(--ink);
 }
 
+.dashboard-shell.sidebar-collapsed {
+  grid-template-columns: 88px minmax(0, 1fr);
+}
+
 .sidebar {
   min-height: 100vh;
+  height: 100vh;
   border-right: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.76);
   backdrop-filter: blur(18px);
@@ -19,9 +24,11 @@
   gap: 26px;
   position: sticky;
   top: 0;
+  align-self: start;
 }
 
 .brand-mark,
+.brand-main,
 .nav-item,
 .panel-header,
 .topbar,
@@ -43,11 +50,18 @@
 }
 
 .brand-mark {
+  justify-content: space-between;
   gap: 12px;
   padding: 0 8px;
 }
 
+.brand-main {
+  min-width: 0;
+  gap: 12px;
+}
+
 .brand-icon {
+  flex: 0 0 auto;
   width: 42px;
   height: 42px;
   border-radius: 8px;
@@ -67,11 +81,57 @@ h2,
   color: var(--ink-strong);
 }
 
-.brand-mark span {
+.brand-copy {
+  min-width: 0;
+}
+
+.brand-copy span {
   display: block;
   color: var(--muted);
   font-size: 13px;
   margin-top: 2px;
+}
+
+.sidebar-collapse-button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.sidebar-collapse-button:hover {
+  background: var(--surface-strong);
+  color: var(--ink-strong);
+}
+
+.sidebar.collapsed {
+  padding-inline: 14px;
+}
+
+.sidebar.collapsed .brand-mark {
+  flex-direction: column;
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar.collapsed .brand-main {
+  justify-content: center;
+}
+
+.sidebar.collapsed .brand-copy,
+.sidebar.collapsed .nav-item span,
+.sidebar.collapsed .sidebar-panel {
+  display: none;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 0;
 }
 
 .nav-stack {
@@ -575,16 +635,14 @@ h2 {
 }
 
 .calendar-view-grid {
-  display: grid;
-  grid-template-columns: minmax(680px, 1fr) minmax(280px, 340px);
-  gap: 16px;
-  align-items: start;
+  display: block;
 }
 
 .calendar-legend,
 .freeze-row,
 .calendar-event,
-.freeze-panel .primary-action {
+.modal-header,
+.freeze-dialog .primary-action {
   display: flex;
   align-items: center;
 }
@@ -625,6 +683,19 @@ h2 {
 
 .legend-dot.production {
   background: #0f766e;
+}
+
+.action-count {
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #10231f;
+  color: #ffffff;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .year-calendar {
@@ -752,19 +823,58 @@ h2 {
   background: #991b1b;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.42);
+  display: grid;
+  place-items: center;
+}
+
+.modal-card {
+  width: min(620px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 32px 90px rgba(15, 23, 42, 0.26);
+  padding: 18px;
+}
+
+.modal-header {
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.freeze-dialog {
+  display: grid;
+  gap: 16px;
+}
+
 .freeze-form {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.freeze-panel .primary-action {
+.freeze-form label:first-child,
+.freeze-form .form-actions {
+  grid-column: 1 / -1;
+}
+
+.freeze-dialog .primary-action {
   justify-content: center;
 }
 
 .freeze-list {
   display: grid;
   gap: 10px;
-  margin-top: 16px;
+  max-height: 300px;
+  overflow: auto;
 }
 
 .freeze-row {
@@ -1435,29 +1545,6 @@ span[role='button']:focus-visible {
 }
 
 @media (max-width: 1320px) {
-  .dashboard-shell {
-    grid-template-columns: 88px minmax(0, 1fr);
-  }
-
-  .sidebar {
-    padding-inline: 14px;
-  }
-
-  .brand-mark div:last-child,
-  .nav-item span,
-  .sidebar-panel {
-    display: none;
-  }
-
-  .brand-mark {
-    justify-content: center;
-  }
-
-  .nav-item {
-    justify-content: center;
-    padding: 0;
-  }
-
   .pm-grid {
     grid-template-columns: minmax(280px, 0.75fr) minmax(380px, 1fr);
   }
@@ -1468,8 +1555,7 @@ span[role='button']:focus-visible {
 
   .two-view-grid,
   .requirement-view-grid,
-  .single-view-grid,
-  .calendar-view-grid {
+  .single-view-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1520,14 +1606,33 @@ span[role='button']:focus-visible {
     box-shadow: 24px 0 48px rgba(17, 24, 39, 0.18);
   }
 
-  .sidebar.open {
-    transform: translateX(0);
+  .sidebar.collapsed {
+    padding: 24px 18px;
   }
 
-  .sidebar.open .brand-mark div:last-child,
+  .sidebar.open {
+    transform: translateX(0);
+    align-items: stretch;
+  }
+
+  .sidebar.open .brand-mark {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 0 8px;
+  }
+
+  .sidebar.open .brand-main {
+    justify-content: flex-start;
+  }
+
+  .sidebar.open .brand-copy,
   .sidebar.open .nav-item span,
   .sidebar.open .sidebar-panel {
     display: block;
+  }
+
+  .sidebar.open .sidebar-collapse-button {
+    display: none;
   }
 
   .sidebar.open .nav-item {
@@ -1610,6 +1715,10 @@ span[role='button']:focus-visible {
   }
 
   .year-calendar {
+    grid-template-columns: 1fr;
+  }
+
+  .freeze-form {
     grid-template-columns: 1fr;
   }
 

@@ -104,6 +104,8 @@ export type AppCopy = {
   searchLabel: string
   clearSearch: string
   language: string
+  collapseSidebar: string
+  expandSidebar: string
   heroEyebrow: string
   heroTitle: string
   heroCopy: string
