@@ -35,6 +35,9 @@ const isDateInPeriod = (dateKey: string, period: FreezePeriod) => dateKey >= per
 const getMonthName = (year: number, month: number, language: Lang) =>
   new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : 'en-US', { month: 'long' }).format(new Date(year, month, 1))
 
+const getHolidayLabel = (holiday: HolidayEvent, copy: AppCopy) =>
+  holiday.country === 'cn' ? copy.chinaHoliday : copy.indonesiaHoliday
+
 export function HolidayCalendar({
   year,
   holidays,
@@ -139,16 +142,26 @@ export function HolidayCalendar({
                     const dayProductions = productionByDate.get(dateKey) ?? []
                     const isFrozen = dayFreezes.length > 0
                     const isHoliday = dayHolidays.length > 0
+                    const hasEvents = isFrozen || isHoliday || dayProductions.length > 0
                     const hasConflict = dayProductions.length > 0 && (isFrozen || isHoliday)
+                    const eventSummary = [
+                      dateKey,
+                      ...dayFreezes.map((period) => `${copy.freezePeriod}: ${period.name}`),
+                      ...dayHolidays.map((holiday) => `${getHolidayLabel(holiday, copy)}: ${holiday.name}`),
+                      ...dayProductions.map((record) => `${copy.productionDate}: ${record.projectName} · ${record.version.name}`),
+                    ].join('\n')
 
                     return (
                       <div
                         className={[
                           'calendar-day',
+                          hasEvents ? 'has-events' : '',
                           dateKey === todayKey ? 'today' : '',
                           isFrozen ? 'frozen' : '',
                           hasConflict ? 'production-conflict' : '',
                         ].filter(Boolean).join(' ')}
+                        tabIndex={hasEvents ? 0 : undefined}
+                        aria-label={hasEvents ? eventSummary : undefined}
                         key={dateKey}
                       >
                         <span className="day-number">{day}</span>
@@ -161,7 +174,7 @@ export function HolidayCalendar({
                           ))}
                           {dayHolidays.slice(0, 2).map((holiday) => (
                             <span className={`calendar-event holiday ${holiday.country}`} key={`${holiday.country}-${holiday.name}`}>
-                              {holiday.country === 'cn' ? 'CN' : 'ID'} · {holiday.name}
+                              {holiday.name}
                             </span>
                           ))}
                           {dayProductions.slice(0, 2).map((record) => (
@@ -177,6 +190,32 @@ export function HolidayCalendar({
                             </button>
                           ))}
                         </div>
+                        {hasEvents && (
+                          <div className="calendar-day-tooltip" role="tooltip">
+                            <strong>{dateKey}</strong>
+                            {dayFreezes.map((period) => (
+                              <span className="tooltip-row freeze" key={`tip-${period.id}`}>
+                                <i />
+                                <span>{copy.freezePeriod}</span>
+                                <em>{period.name}</em>
+                              </span>
+                            ))}
+                            {dayHolidays.map((holiday) => (
+                              <span className={`tooltip-row ${holiday.country}`} key={`tip-${holiday.country}-${holiday.name}`}>
+                                <i />
+                                <span>{getHolidayLabel(holiday, copy)}</span>
+                                <em>{holiday.name}</em>
+                              </span>
+                            ))}
+                            {dayProductions.map((record) => (
+                              <span className="tooltip-row production" key={`tip-${record.version.id}`}>
+                                <i />
+                                <span>{copy.productionDate}</span>
+                                <em>{record.projectName} · {record.version.name}</em>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )
                   })}

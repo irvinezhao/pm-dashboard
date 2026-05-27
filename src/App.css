@@ -708,7 +708,7 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .month-card h3 {
@@ -741,6 +741,7 @@ h2 {
 }
 
 .calendar-day {
+  position: relative;
   min-height: 76px;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -749,6 +750,10 @@ h2 {
   align-content: start;
   gap: 4px;
   background: #ffffff;
+}
+
+.calendar-day.has-events {
+  cursor: help;
 }
 
 .calendar-day:nth-child(7n) {
@@ -821,6 +826,110 @@ h2 {
 
 .calendar-event.production.conflict {
   background: #991b1b;
+}
+
+.calendar-day-tooltip {
+  position: absolute;
+  left: 50%;
+  top: calc(100% - 3px);
+  z-index: 12;
+  width: max-content;
+  min-width: 230px;
+  max-width: min(330px, 72vw);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+  padding: 10px;
+  display: grid;
+  gap: 7px;
+  color: var(--ink);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 6px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.calendar-day:nth-child(7n + 1) .calendar-day-tooltip {
+  left: 4px;
+  transform: translate(0, 6px);
+}
+
+.calendar-day:nth-child(7n) .calendar-day-tooltip {
+  left: auto;
+  right: 4px;
+  transform: translate(0, 6px);
+}
+
+.calendar-day.has-events:hover,
+.calendar-day.has-events:focus-within,
+.calendar-day.has-events:focus {
+  z-index: 14;
+}
+
+.calendar-day.has-events:hover .calendar-day-tooltip,
+.calendar-day.has-events:focus-within .calendar-day-tooltip,
+.calendar-day.has-events:focus .calendar-day-tooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.calendar-day:nth-child(7n + 1):hover .calendar-day-tooltip,
+.calendar-day:nth-child(7n + 1):focus-within .calendar-day-tooltip,
+.calendar-day:nth-child(7n + 1):focus .calendar-day-tooltip,
+.calendar-day:nth-child(7n):hover .calendar-day-tooltip,
+.calendar-day:nth-child(7n):focus-within .calendar-day-tooltip,
+.calendar-day:nth-child(7n):focus .calendar-day-tooltip {
+  transform: translate(0, 0);
+}
+
+.calendar-day-tooltip strong {
+  color: var(--ink-strong);
+  font-size: 12px;
+}
+
+.tooltip-row {
+  display: grid;
+  grid-template-columns: 9px 70px minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.tooltip-row i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-top: 4px;
+}
+
+.tooltip-row.cn i {
+  background: #dc2626;
+}
+
+.tooltip-row.id i {
+  background: #2563eb;
+}
+
+.tooltip-row.freeze i {
+  background: #64748b;
+}
+
+.tooltip-row.production i {
+  background: #0f766e;
+}
+
+.tooltip-row span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.tooltip-row em {
+  color: var(--ink-strong);
+  font-style: normal;
+  font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .modal-backdrop {
