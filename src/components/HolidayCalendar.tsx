@@ -38,6 +38,11 @@ const getMonthName = (year: number, month: number, language: Lang) =>
 const getHolidayLabel = (holiday: HolidayEvent, copy: AppCopy) =>
   holiday.country === 'cn' ? copy.chinaHoliday : copy.indonesiaHoliday
 
+const getProductionSummary = (record: ProductionDateRecord, copy: AppCopy) => [
+  `${copy.productionDate}: ${record.projectName} · ${record.version.name}`,
+  ...record.version.requirements.map((requirement) => `${requirement.code} ${requirement.title}`),
+]
+
 export function HolidayCalendar({
   year,
   holidays,
@@ -148,7 +153,7 @@ export function HolidayCalendar({
                       dateKey,
                       ...dayFreezes.map((period) => `${copy.freezePeriod}: ${period.name}`),
                       ...dayHolidays.map((holiday) => `${getHolidayLabel(holiday, copy)}: ${holiday.name}`),
-                      ...dayProductions.map((record) => `${copy.productionDate}: ${record.projectName} · ${record.version.name}`),
+                      ...dayProductions.flatMap((record) => getProductionSummary(record, copy)),
                     ].join('\n')
 
                     return (
@@ -208,11 +213,23 @@ export function HolidayCalendar({
                               </span>
                             ))}
                             {dayProductions.map((record) => (
-                              <span className="tooltip-row production" key={`tip-${record.version.id}`}>
-                                <i />
-                                <span>{copy.productionDate}</span>
-                                <em>{record.projectName} · {record.version.name}</em>
-                              </span>
+                              <div className="tooltip-production" key={`tip-${record.version.id}`}>
+                                <span className="tooltip-row production">
+                                  <i />
+                                  <span>{copy.productionDate}</span>
+                                  <em>{record.projectName} · {record.version.name}</em>
+                                </span>
+                                {record.version.requirements.length > 0 && (
+                                  <div className="tooltip-requirements" aria-label={copy.requirements}>
+                                    {record.version.requirements.map((requirement) => (
+                                      <span key={requirement.id}>
+                                        <strong>{requirement.code}</strong>
+                                        <em>{requirement.title}</em>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             ))}
                           </div>
                         )}
