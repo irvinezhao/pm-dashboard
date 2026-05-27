@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   CalendarDays,
   CheckCircle2,
@@ -13,22 +13,37 @@ import {
   Languages,
   Link2,
   ListChecks,
+  LogOut,
   PanelLeft,
   Plus,
   Rocket,
   Search,
+  ShieldCheck,
   Trash2,
+  UserPlus,
   X,
 } from 'lucide-react'
 import { InfoLine } from './components/InfoLine'
 import { GanttChart } from './components/GanttChart'
 import { HolidayCalendar } from './components/HolidayCalendar'
 import { MetricCard } from './components/MetricCard'
-import { navigation } from './config/navigation'
+import { getHashForView, getViewFromHash, loginRoute, navigation } from './config/navigation'
 import { emptyFreezePeriodDraft, emptyProjectDraft, emptyRequirementDraft, emptyVersionDraft, stages, today } from './constants'
 import { getHolidayEvents } from './data/holidayCalendar'
 import { initialProjects } from './data/initialProjects'
 import { copy } from './i18n/copy'
+import {
+  authenticateUser,
+  clearSession,
+  createViewerUser,
+  loadStoredSession,
+  loadStoredUsers,
+  saveSession,
+  saveUsers,
+  type AuthUser,
+  type LoginDraft,
+  type UserDraft,
+} from './lib/auth'
 import { makeId } from './lib/id'
 import { canEdit, type UserRole } from './lib/permissions'
 import {
@@ -65,13 +80,37 @@ import './App.css'
 
 const initialStoredProjects = loadStoredProjects()
 const initialStoredFreezePeriods = loadStoredFreezePeriods()
+const initialStoredUsers = loadStoredUsers()
+
+const emptyLoginDraft: LoginDraft = {
+  username: '',
+  password: '',
+}
+
+const emptyUserDraft: UserDraft = {
+  username: '',
+  password: '',
+}
+
+const getInitialView = (): ViewKey => {
+  if (typeof window === 'undefined') {
+    return 'dashboard'
+  }
+
+  return getViewFromHash(window.location.hash) ?? 'dashboard'
+}
 
 function App() {
   const [language, setLanguage] = useState<Lang>('zh')
-  const [activeView, setActiveView] = useState<ViewKey>('dashboard')
+  const [activeView, setActiveView] = useState<ViewKey>(getInitialView)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [userRole] = useState<UserRole>('owner')
+  const [users, setUsers] = useState<AuthUser[]>(initialStoredUsers)
+  const [session, setSession] = useState(() => loadStoredSession(initialStoredUsers))
+  const [loginDraft, setLoginDraft] = useState<LoginDraft>(emptyLoginDraft)
+  const [loginError, setLoginError] = useState('')
+  const [userDraft, setUserDraft] = useState<UserDraft>(emptyUserDraft)
+  const [userMessage, setUserMessage] = useState('')
   const [projects, setProjects] = useState<Project[]>(initialStoredProjects)
   const [freezePeriods, setFreezePeriods] = useState<FreezePeriod[]>(initialStoredFreezePeriods)
   const [selectedProjectId, setSelectedProjectId] = useState(initialStoredProjects[0].id)
@@ -96,6 +135,7 @@ function App() {
   const requirementPanelRef = useRef<HTMLElement>(null)
 
   const t = copy[language]
+  const userRole: UserRole = session?.role ?? 'viewer'
   const editable = canEdit(userRole)
   const calendarYear = new Date().getFullYear()
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0]
@@ -111,6 +151,27 @@ function App() {
   useEffect(() => {
     saveFreezePeriods(freezePeriods)
   }, [freezePeriods])
+
+  useEffect(() => {
+    saveUsers(users)
+  }, [users])
+
+  useEffect(() => {
+    const syncViewFromHash = () => {
+      const routeView = getViewFromHash(window.location.hash)
+      if (routeView) {
+        setActiveView(routeView)
+      }
+    }
+
+    syncViewFromHash()
+    window.addEventListener('hashchange', syncViewFromHash)
+    window.addEventListener('popstate', syncViewFromHash)
+    return () => {
+      window.removeEventListener('hashchange', syncViewFromHash)
+      window.removeEventListener('popstate', syncViewFromHash)
+    }
+  }, [])
 
   const portfolioStats = useMemo(() => {
     const countVersions = (versions: Version[]): number =>
@@ -206,6 +267,14 @@ function App() {
     })
   }, [query, selectedProject, stageFilter])
 
+  const navigateToView = (view: ViewKey) => {
+    const targetHash = getHashForView(view)
+    setActiveView(view)
+    if (window.location.hash !== targetHash) {
+      window.history.pushState(null, '', targetHash)
+    }
+  }
+
   const selectProject = (projectId: string) => {
     const project = projects.find((item) => item.id === projectId)
     setSelectedProjectId(projectId)
@@ -228,7 +297,7 @@ function App() {
     if (record.parentVersionId) {
       setExpandedVersionIds((current) => new Set(current).add(record.parentVersionId))
     }
-    setActiveView(view)
+    navigateToView(view)
   }
 
   const resetLocalData = () => {
@@ -278,6 +347,57 @@ function App() {
     }
 
     setFreezePeriods((currentPeriods) => currentPeriods.filter((period) => period.id !== id))
+  }
+
+  const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setLoginError('')
+
+    const nextSession = await authenticateUser(users, loginDraft)
+    if (!nextSession) {
+      setLoginError(t.loginError)
+      return
+    }
+
+    saveSession(nextSession)
+    setSession(nextSession)
+    setLoginDraft(emptyLoginDraft)
+    navigateToView(getViewFromHash(window.location.hash) ?? 'dashboard')
+  }
+
+  const logout = () => {
+    clearSession()
+    setSession(null)
+    setLoginDraft(emptyLoginDraft)
+    window.history.pushState(null, '', `#${loginRoute}`)
+  }
+
+  const addViewerUser = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setUserMessage('')
+
+    if (!editable || !userDraft.username.trim() || !userDraft.password.trim()) {
+      return
+    }
+
+    const normalizedUsername = userDraft.username.trim().toLowerCase()
+    if (users.some((user) => user.username.toLowerCase() === normalizedUsername)) {
+      setUserMessage(t.userExists)
+      return
+    }
+
+    const nextUser = await createViewerUser(userDraft)
+    setUsers((currentUsers) => [...currentUsers, nextUser])
+    setUserDraft(emptyUserDraft)
+    setUserMessage(t.userAdded)
+  }
+
+  const deleteViewerUser = (userId: string) => {
+    if (!editable) {
+      return
+    }
+
+    setUsers((currentUsers) => currentUsers.filter((user) => user.id !== userId || user.role === 'owner'))
   }
 
   const updateSelectedProject = (updater: (project: Project) => Project) => {
@@ -1095,12 +1215,57 @@ function App() {
           <p>{t.localStorageHint}</p>
         </article>
         <article className="settings-card">
+          <strong>{t.accessMode}</strong>
+          <span>{session?.username ?? ''} · {editable ? t.adminMode : t.viewerMode}</span>
+          <p>{editable ? t.userManagementCopy : t.readonlyNotice}</p>
+        </article>
+        <article className="settings-card">
           <strong>{t.resetData}</strong>
           <p>{t.resetDataHint}</p>
           <button className="secondary-action" type="button" onClick={resetLocalData} disabled={!editable}>
             <Trash2 size={16} />
             {t.resetData}
           </button>
+        </article>
+        <article className="settings-card user-management-card">
+          <strong>{t.userManagement}</strong>
+          <p>{t.userManagementCopy}</p>
+          {editable && (
+            <form className="user-form" onSubmit={addViewerUser}>
+              <label>
+                <span>{t.viewerUsername}</span>
+                <input
+                  value={userDraft.username}
+                  onChange={(event) => setUserDraft({ ...userDraft, username: event.target.value })}
+                />
+              </label>
+              <label>
+                <span>{t.viewerPassword}</span>
+                <input
+                  type="password"
+                  value={userDraft.password}
+                  onChange={(event) => setUserDraft({ ...userDraft, password: event.target.value })}
+                />
+              </label>
+              <button className="primary-action" type="submit" disabled={!userDraft.username.trim() || !userDraft.password.trim()}>
+                <UserPlus size={16} />
+                {t.addViewer}
+              </button>
+              {userMessage && <p className="form-message">{userMessage}</p>}
+            </form>
+          )}
+          <div className="user-list">
+            {users.filter((user) => user.role === 'viewer').length === 0 && <p className="empty-state">{t.noViewers}</p>}
+            {users.filter((user) => user.role === 'viewer').map((user) => (
+              <div className="user-row" key={user.id}>
+                <span>{user.username}</span>
+                <small>{t.viewerMode}</small>
+                <button type="button" aria-label={t.deleteUser} onClick={() => deleteViewerUser(user.id)} disabled={!editable}>
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
         </article>
       </div>
     </section>
@@ -1206,6 +1371,68 @@ function App() {
   ].filter(Boolean).join(' ')
   const sidebarToggleLabel = isSidebarCollapsed ? t.expandSidebar : t.collapseSidebar
 
+  if (!session) {
+    return (
+      <main className="login-shell" lang={language === 'zh' ? 'zh-CN' : 'en'}>
+        <section className="login-card" aria-labelledby="login-title">
+          <div className="login-brand">
+            <div className="brand-icon">
+              <Command size={18} />
+            </div>
+            <div>
+              <strong>PM Dashboard</strong>
+              <span>{t.subtitle}</span>
+            </div>
+          </div>
+
+          <div>
+            <p className="eyebrow">{t.accessMode}</p>
+            <h1 id="login-title">{t.loginTitle}</h1>
+            <p className="hero-copy">{t.loginCopy}</p>
+          </div>
+
+          <form className="login-form" onSubmit={submitLogin}>
+            <label>
+              <span>{t.username}</span>
+              <input
+                autoComplete="username"
+                value={loginDraft.username}
+                onChange={(event) => setLoginDraft({ ...loginDraft, username: event.target.value })}
+              />
+            </label>
+            <label>
+              <span>{t.password}</span>
+              <input
+                autoComplete="current-password"
+                type="password"
+                value={loginDraft.password}
+                onChange={(event) => setLoginDraft({ ...loginDraft, password: event.target.value })}
+              />
+            </label>
+            {loginError && <p className="form-error">{loginError}</p>}
+            <button className="primary-action" type="submit">
+              <ShieldCheck size={16} />
+              {t.signIn}
+            </button>
+          </form>
+
+          <div className="login-footer">
+            <span>{t.contactIrving}</span>
+            <div className="language-toggle" aria-label={t.language}>
+              <Languages size={16} />
+              <button className={language === 'en' ? 'selected' : ''} type="button" onClick={() => setLanguage('en')}>
+                EN
+              </button>
+              <button className={language === 'zh' ? 'selected' : ''} type="button" onClick={() => setLanguage('zh')}>
+                中文
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+    )
+  }
+
   return (
     <main className={shellClassName} lang={language === 'zh' ? 'zh-CN' : 'en'}>
       <aside className={sidebarClassName} aria-label="Main navigation">
@@ -1239,7 +1466,7 @@ function App() {
                 type="button"
                 key={item.key}
                 onClick={() => {
-                  setActiveView(item.key)
+                  navigateToView(item.key)
                   setIsSidebarOpen(false)
                 }}
                 aria-label={t.nav[item.key]}
@@ -1263,7 +1490,7 @@ function App() {
             type="button"
             onClick={() => {
               setStageFilter(selectedVersion && stages.includes(selectedVersion.stage) ? selectedVersion.stage : 'all')
-              setActiveView('versions')
+              navigateToView('versions')
             }}
           >
             {t.activeVersion}
@@ -1298,6 +1525,10 @@ function App() {
             )}
           </div>
           <div className="topbar-actions">
+            <div className={editable ? 'access-pill admin' : 'access-pill viewer'}>
+              <ShieldCheck size={15} />
+              <span>{editable ? t.adminMode : t.viewerMode}</span>
+            </div>
             <div className="language-toggle" aria-label={t.language}>
               <Languages size={16} />
               <button className={language === 'en' ? 'selected' : ''} type="button" onClick={() => setLanguage('en')}>
@@ -1307,6 +1538,10 @@ function App() {
                 中文
               </button>
             </div>
+            <button className="secondary-action" type="button" onClick={logout}>
+              <LogOut size={16} />
+              {t.logout}
+            </button>
           </div>
         </header>
 
@@ -1322,7 +1557,7 @@ function App() {
               type="button"
               onClick={() => {
                 setStageFilter('all')
-                setActiveView('versions')
+                navigateToView('versions')
               }}
             >
               <ListChecks size={17} />

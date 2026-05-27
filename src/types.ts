@@ -106,6 +106,28 @@ export type AppCopy = {
   language: string
   collapseSidebar: string
   expandSidebar: string
+  loginTitle: string
+  loginCopy: string
+  username: string
+  password: string
+  signIn: string
+  contactIrving: string
+  loginError: string
+  signedInAs: string
+  logout: string
+  accessMode: string
+  adminMode: string
+  viewerMode: string
+  readonlyNotice: string
+  userManagement: string
+  userManagementCopy: string
+  addViewer: string
+  viewerUsername: string
+  viewerPassword: string
+  userExists: string
+  userAdded: string
+  noViewers: string
+  deleteUser: string
   heroEyebrow: string
   heroTitle: string
   heroCopy: string

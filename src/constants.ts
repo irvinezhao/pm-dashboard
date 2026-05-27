@@ -9,6 +9,8 @@ const getLocalDateKey = () => {
 export const today = getLocalDateKey()
 export const storageKey = 'pm-dashboard-projects-v2'
 export const freezePeriodStorageKey = 'pm-dashboard-freeze-periods-v1'
+export const userStorageKey = 'pm-dashboard-users-v1'
+export const sessionStorageKey = 'pm-dashboard-session-v1'
 export const importedProjectIds: string[] = []
 export const stages: Stage[] = ['development', 'uat', 'production']
 
