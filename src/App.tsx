@@ -20,6 +20,7 @@ import {
   X,
 } from 'lucide-react'
 import { InfoLine } from './components/InfoLine'
+import { GanttChart } from './components/GanttChart'
 import { MetricCard } from './components/MetricCard'
 import { navigation } from './config/navigation'
 import { emptyProjectDraft, emptyRequirementDraft, emptyVersionDraft, stages, today } from './constants'
@@ -1036,11 +1037,21 @@ function App() {
     </section>
   )
 
+  const ganttPanel = (
+    <GanttChart
+      records={allVersionRecords}
+      copy={t}
+      language={language}
+      onSelectVersion={(record) => selectVersionRecord(record, 'versions')}
+    />
+  )
+
   const viewIntroMap: Record<ViewKey, { eyebrow: string; title: string; copy: string }> = {
     dashboard: { eyebrow: t.heroEyebrow, title: t.heroTitle, copy: t.heroCopy },
     projects: { eyebrow: t.nav.projects, title: t.projectViewTitle, copy: t.projectViewCopy },
     versions: { eyebrow: t.nav.versions, title: t.versionViewTitle, copy: t.versionViewCopy },
     requirements: { eyebrow: t.nav.requirements, title: t.requirementViewTitle, copy: t.requirementViewCopy },
+    gantt: { eyebrow: t.nav.gantt, title: t.ganttViewTitle, copy: t.ganttViewCopy },
     team: { eyebrow: t.nav.team, title: t.teamViewTitle, copy: t.teamViewCopy },
     settings: { eyebrow: t.nav.settings, title: t.settingsViewTitle, copy: t.settingsViewCopy },
   }
@@ -1051,6 +1062,7 @@ function App() {
     dashboard: (
       <>
         {metricsSection}
+        {ganttPanel}
         <section className="pm-grid">
           {projectPanel}
           {versionPanel}
@@ -1088,6 +1100,7 @@ function App() {
         {requirementPanel}
       </section>
     ),
+    gantt: ganttPanel,
     team: teamPanel,
     settings: settingsPanel,
   } satisfies Record<ViewKey, React.ReactNode>
@@ -1214,6 +1227,8 @@ function App() {
           <MetricCard label={t.metrics.requirements} value={portfolioStats.requirementCount.toString()} icon={ListChecks} />
           <MetricCard label={t.metrics.production} value={portfolioStats.productionCount.toString()} icon={Rocket} />
         </section>
+
+        {ganttPanel}
 
         <section className="pm-grid">
           <section className="section-surface project-board" aria-labelledby="project-config-title">

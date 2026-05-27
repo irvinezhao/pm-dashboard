@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  ChartGantt,
   CopyPlus,
   LayoutDashboard,
   ListChecks,
@@ -13,6 +14,7 @@ export const navigation: Array<{ key: ViewKey; icon: typeof LayoutDashboard }> =
   { key: 'projects', icon: CopyPlus },
   { key: 'versions', icon: CalendarDays },
   { key: 'requirements', icon: ListChecks },
+  { key: 'gantt', icon: ChartGantt },
   { key: 'team', icon: UsersRound },
   { key: 'settings', icon: Settings },
 ]

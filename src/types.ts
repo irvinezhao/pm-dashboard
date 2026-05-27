@@ -1,6 +1,6 @@
 export type Lang = 'en' | 'zh'
 export type Stage = 'versionStart' | 'development' | 'uat' | 'production'
-export type ViewKey = 'dashboard' | 'projects' | 'versions' | 'requirements' | 'team' | 'settings'
+export type ViewKey = 'dashboard' | 'projects' | 'versions' | 'requirements' | 'gantt' | 'team' | 'settings'
 
 export type Requirement = {
   id: string
@@ -129,6 +129,11 @@ export type AppCopy = {
   versionViewCopy: string
   requirementViewTitle: string
   requirementViewCopy: string
+  ganttViewTitle: string
+  ganttViewCopy: string
+  ganttTitle: string
+  ganttHint: string
+  ganttEmpty: string
   teamViewTitle: string
   teamViewCopy: string
   settingsViewTitle: string

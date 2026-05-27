@@ -362,6 +362,170 @@ h2 {
   margin-top: 7px;
 }
 
+.gantt-panel {
+  margin-bottom: 16px;
+}
+
+.gantt-frame {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.gantt-table {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+}
+
+.gantt-left-header {
+  min-height: 44px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.gantt-scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.gantt-axis,
+.gantt-track {
+  min-width: var(--gantt-width, 720px);
+}
+
+.gantt-axis {
+  position: relative;
+  min-height: 44px;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, rgba(15, 118, 110, 0.08) 1px, transparent 1px) 0 0 / calc(var(--day-width, 28px) * 7) 100%,
+    var(--surface);
+}
+
+.gantt-tick {
+  position: absolute;
+  top: 12px;
+  transform: translateX(-1px);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.gantt-tick::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22px;
+  width: 1px;
+  height: 10px;
+  background: var(--line);
+}
+
+.gantt-row {
+  display: contents;
+}
+
+.gantt-row-label {
+  min-height: 68px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+}
+
+.gantt-row-label span,
+.gantt-row-label small,
+.gantt-bar small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.gantt-row-label span {
+  min-height: 15px;
+  font-weight: 800;
+}
+
+.gantt-row-label strong {
+  color: var(--ink-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-row-label small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-track {
+  position: relative;
+  height: 68px;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, rgba(217, 224, 227, 0.7) 1px, transparent 1px) 0 0 / var(--day-width, 28px) 100%,
+    #ffffff;
+}
+
+.gantt-bar {
+  position: absolute;
+  left: var(--bar-left);
+  top: 14px;
+  width: var(--bar-width);
+  height: 40px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 12px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(17, 24, 39, 0.12);
+}
+
+.gantt-bar span,
+.gantt-bar small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gantt-bar span {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.gantt-bar small {
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.gantt-bar.versionStart {
+  background: #2563eb;
+}
+
+.gantt-bar.development {
+  background: #b45309;
+}
+
+.gantt-bar.uat {
+  background: #7c3aed;
+}
+
+.gantt-bar.production {
+  background: #047857;
+}
+
+.gantt-bar:hover {
+  filter: brightness(1.05);
+}
+
 .pm-grid {
   display: grid;
   grid-template-columns: minmax(260px, 0.68fr) minmax(360px, 0.9fr) minmax(560px, 1.42fr);
@@ -1040,6 +1204,10 @@ span[role='button']:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .gantt-table {
+    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  }
+
   .version-form,
   .requirement-form {
     grid-template-columns: 1fr;
@@ -1149,6 +1317,18 @@ span[role='button']:focus-visible {
 
   .section-action {
     justify-content: center;
+  }
+
+  .gantt-table {
+    grid-template-columns: 156px minmax(0, 1fr);
+  }
+
+  .gantt-row-label {
+    padding: 10px;
+  }
+
+  .gantt-bar {
+    padding: 0 10px;
   }
 
   .project-row-main {
