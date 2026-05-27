@@ -685,6 +685,10 @@ h2 {
   background: #0f766e;
 }
 
+.legend-dot.planned-production {
+  background: #f97316;
+}
+
 .action-count {
   min-width: 22px;
   height: 22px;
@@ -828,6 +832,15 @@ h2 {
   background: #991b1b;
 }
 
+.calendar-event.planned-production {
+  background: #f97316;
+  cursor: pointer;
+}
+
+.calendar-event.planned-production.conflict {
+  background: #c2410c;
+}
+
 .calendar-day-tooltip {
   position: absolute;
   left: 50%;
@@ -920,6 +933,10 @@ h2 {
   background: #0f766e;
 }
 
+.tooltip-row.planned-production i {
+  background: #f97316;
+}
+
 .tooltip-row span {
   color: var(--muted);
   font-weight: 800;
@@ -957,6 +974,10 @@ h2 {
   color: #0f766e;
   font-size: 12px;
   overflow-wrap: anywhere;
+}
+
+.tooltip-requirements.planned strong {
+  color: #c2410c;
 }
 
 .tooltip-requirements em {

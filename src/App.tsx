@@ -173,6 +173,16 @@ function App() {
     [allVersionRecords, calendarYear],
   )
 
+  const plannedProductionDateRecords = useMemo<ProductionDateRecord[]>(() => {
+    const selectedRecord = allVersionRecords.find((record) => record.version.id === selectedVersion?.id)
+
+    if (!selectedRecord || !selectedRecord.version.endDate.startsWith(`${calendarYear}-`)) {
+      return []
+    }
+
+    return [{ ...selectedRecord, date: selectedRecord.version.endDate }]
+  }, [allVersionRecords, calendarYear, selectedVersion?.id])
+
   const teamLoads = useMemo(() => {
     const grouped = new Map<string, RequirementRecord[]>()
 
@@ -1114,6 +1124,7 @@ function App() {
       language={language}
       editable={editable}
       productionRecords={productionDateRecords}
+      plannedProductionRecords={plannedProductionDateRecords}
       onFreezeDraftChange={setFreezeDraft}
       onAddFreezePeriod={addFreezePeriod}
       onDeleteFreezePeriod={deleteFreezePeriod}

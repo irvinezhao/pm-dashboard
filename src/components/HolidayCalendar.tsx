@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Ban, Plus, Rocket, Settings2, Trash2, X } from 'lucide-react'
-import type { AppCopy, FreezePeriod, FreezePeriodDraft, HolidayEvent, Lang, ProductionDateRecord } from '../types'
+import type { AppCopy, FreezePeriod, FreezePeriodDraft, HolidayEvent, Lang, ProductionDateRecord, Requirement } from '../types'
 
 type HolidayCalendarProps = {
   year: number
@@ -11,6 +11,7 @@ type HolidayCalendarProps = {
   language: Lang
   editable: boolean
   productionRecords: ProductionDateRecord[]
+  plannedProductionRecords: ProductionDateRecord[]
   onFreezeDraftChange: (draft: FreezePeriodDraft) => void
   onAddFreezePeriod: () => void
   onDeleteFreezePeriod: (id: string) => void
@@ -38,9 +39,19 @@ const getMonthName = (year: number, month: number, language: Lang) =>
 const getHolidayLabel = (holiday: HolidayEvent, copy: AppCopy) =>
   holiday.country === 'cn' ? copy.chinaHoliday : copy.indonesiaHoliday
 
+const getVersionRequirements = (version: ProductionDateRecord['version']): Requirement[] => [
+  ...version.requirements,
+  ...version.subVersions.flatMap(getVersionRequirements),
+]
+
 const getProductionSummary = (record: ProductionDateRecord, copy: AppCopy) => [
   `${copy.productionDate}: ${record.projectName} · ${record.version.name}`,
-  ...record.version.requirements.map((requirement) => `${requirement.code} ${requirement.title}`),
+  ...getVersionRequirements(record.version).map((requirement) => `${requirement.code} ${requirement.title}`),
+]
+
+const getPlannedProductionSummary = (record: ProductionDateRecord, copy: AppCopy) => [
+  `${copy.plannedProductionDate}: ${record.projectName} · ${record.version.name}`,
+  ...getVersionRequirements(record.version).map((requirement) => `${requirement.code} ${requirement.title}`),
 ]
 
 export function HolidayCalendar({
@@ -52,6 +63,7 @@ export function HolidayCalendar({
   language,
   editable,
   productionRecords,
+  plannedProductionRecords,
   onFreezeDraftChange,
   onAddFreezePeriod,
   onDeleteFreezePeriod,
@@ -61,6 +73,7 @@ export function HolidayCalendar({
   const todayKey = getTodayKey()
   const holidaysByDate = new Map<string, HolidayEvent[]>()
   const productionByDate = new Map<string, ProductionDateRecord[]>()
+  const plannedProductionByDate = new Map<string, ProductionDateRecord[]>()
 
   holidays.forEach((holiday) => {
     holidaysByDate.set(holiday.date, [...(holidaysByDate.get(holiday.date) ?? []), holiday])
@@ -68,6 +81,10 @@ export function HolidayCalendar({
 
   productionRecords.forEach((record) => {
     productionByDate.set(record.date, [...(productionByDate.get(record.date) ?? []), record])
+  })
+
+  plannedProductionRecords.forEach((record) => {
+    plannedProductionByDate.set(record.date, [...(plannedProductionByDate.get(record.date) ?? []), record])
   })
 
   const weekdays = language === 'zh' ? zhWeekdays : enWeekdays
@@ -118,6 +135,7 @@ export function HolidayCalendar({
           <span><i className="legend-dot id" />{copy.indonesiaHoliday}</span>
           <span><i className="legend-dot freeze" />{copy.freezeUnavailable}</span>
           <span><i className="legend-dot production" />{copy.productionDate}</span>
+          <span><i className="legend-dot planned-production" />{copy.plannedProductionDate}</span>
         </div>
 
         <div className="year-calendar">
@@ -145,15 +163,18 @@ export function HolidayCalendar({
                     const dayHolidays = holidaysByDate.get(dateKey) ?? []
                     const dayFreezes = freezePeriods.filter((period) => isDateInPeriod(dateKey, period))
                     const dayProductions = productionByDate.get(dateKey) ?? []
+                    const dayPlannedProductions = plannedProductionByDate.get(dateKey) ?? []
                     const isFrozen = dayFreezes.length > 0
                     const isHoliday = dayHolidays.length > 0
-                    const hasEvents = isFrozen || isHoliday || dayProductions.length > 0
-                    const hasConflict = dayProductions.length > 0 && (isFrozen || isHoliday)
+                    const hasReleaseDate = dayProductions.length > 0 || dayPlannedProductions.length > 0
+                    const hasEvents = isFrozen || isHoliday || hasReleaseDate
+                    const hasConflict = hasReleaseDate && (isFrozen || isHoliday)
                     const eventSummary = [
                       dateKey,
                       ...dayFreezes.map((period) => `${copy.freezePeriod}: ${period.name}`),
                       ...dayHolidays.map((holiday) => `${getHolidayLabel(holiday, copy)}: ${holiday.name}`),
                       ...dayProductions.flatMap((record) => getProductionSummary(record, copy)),
+                      ...dayPlannedProductions.flatMap((record) => getPlannedProductionSummary(record, copy)),
                     ].join('\n')
 
                     return (
@@ -194,6 +215,18 @@ export function HolidayCalendar({
                               {record.version.name}
                             </button>
                           ))}
+                          {dayPlannedProductions.slice(0, 1).map((record) => (
+                            <button
+                              className={hasConflict ? 'calendar-event planned-production conflict' : 'calendar-event planned-production'}
+                              type="button"
+                              key={`planned-${record.version.id}`}
+                              onClick={() => onSelectVersion(record)}
+                              title={`${copy.plannedProductionDate} · ${record.projectName} · ${record.version.name}`}
+                            >
+                              <Rocket size={10} />
+                              {record.version.name}
+                            </button>
+                          ))}
                         </div>
                         {hasEvents && (
                           <div className="calendar-day-tooltip" role="tooltip">
@@ -219,9 +252,28 @@ export function HolidayCalendar({
                                   <span>{copy.productionDate}</span>
                                   <em>{record.projectName} · {record.version.name}</em>
                                 </span>
-                                {record.version.requirements.length > 0 && (
+                                {getVersionRequirements(record.version).length > 0 && (
                                   <div className="tooltip-requirements" aria-label={copy.requirements}>
-                                    {record.version.requirements.map((requirement) => (
+                                    {getVersionRequirements(record.version).map((requirement) => (
+                                      <span key={requirement.id}>
+                                        <strong>{requirement.code}</strong>
+                                        <em>{requirement.title}</em>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            {dayPlannedProductions.map((record) => (
+                              <div className="tooltip-production" key={`planned-tip-${record.version.id}`}>
+                                <span className="tooltip-row planned-production">
+                                  <i />
+                                  <span>{copy.plannedProductionDate}</span>
+                                  <em>{record.projectName} · {record.version.name}</em>
+                                </span>
+                                {getVersionRequirements(record.version).length > 0 && (
+                                  <div className="tooltip-requirements planned" aria-label={copy.requirements}>
+                                    {getVersionRequirements(record.version).map((requirement) => (
                                       <span key={requirement.id}>
                                         <strong>{requirement.code}</strong>
                                         <em>{requirement.title}</em>

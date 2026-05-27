@@ -180,6 +180,7 @@ export type AppCopy = {
   chinaHoliday: string
   indonesiaHoliday: string
   productionDate: string
+  plannedProductionDate: string
   productionConflict: string
   freezeUnavailable: string
   teamViewTitle: string
