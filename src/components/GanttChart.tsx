@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type PointerEvent, type UIEvent } from 'react'
+import { useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent, type UIEvent } from 'react'
 import type { AppCopy, Lang, VersionRecord } from '../types'
 
 const dayMs = 24 * 60 * 60 * 1000
@@ -45,6 +45,7 @@ const getTodayDate = () => {
 
 export function GanttChart({ records, copy, language, onSelectVersion }: GanttChartProps) {
   const dragStateRef = useRef<{ pointerId: number; startX: number; startScrollLeft: number } | null>(null)
+  const timelineScrollRef = useRef<HTMLDivElement>(null)
   const [timelineScrollLeft, setTimelineScrollLeft] = useState(0)
   const projectOrder = new Map<string, number>()
   const recordOrder = new Map<string, number>()
@@ -80,22 +81,10 @@ export function GanttChart({ records, copy, language, onSelectVersion }: GanttCh
       showProjectLabel: index === 0 || allRows[index - 1].record.projectId !== row.record.projectId,
     }))
 
-  if (rows.length === 0) {
-    return (
-      <section className="section-surface gantt-panel" aria-labelledby="gantt-title">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">{copy.nav.gantt}</p>
-            <h2 id="gantt-title">{copy.ganttTitle}</h2>
-          </div>
-        </div>
-        <p className="empty-state">{copy.ganttEmpty}</p>
-      </section>
-    )
-  }
-
-  const minStart = rows.reduce((earliest, row) => (row.start < earliest ? row.start : earliest), rows[0].start)
-  const maxEnd = rows.reduce((latest, row) => (row.end > latest ? row.end : latest), rows[0].end)
+  const hasRows = rows.length > 0
+  const todayDate = getTodayDate()
+  const minStart = hasRows ? rows.reduce((earliest, row) => (row.start < earliest ? row.start : earliest), rows[0].start) : todayDate
+  const maxEnd = hasRows ? rows.reduce((latest, row) => (row.end > latest ? row.end : latest), rows[0].end) : todayDate
   const chartStart = addDays(minStart, -2)
   const chartEnd = addDays(maxEnd, 2)
   const dayCount = diffDays(chartStart, chartEnd) + 1
@@ -109,9 +98,34 @@ export function GanttChart({ records, copy, language, onSelectVersion }: GanttCh
       left: offset * dayWidth,
     }
   })
-  const todayDate = getTodayDate()
   const showTodayMarker = todayDate >= chartStart && todayDate <= chartEnd
   const todayLeft = diffDays(chartStart, todayDate) * dayWidth
+
+  useLayoutEffect(() => {
+    const timeline = timelineScrollRef.current
+    if (!timeline || !showTodayMarker) {
+      return
+    }
+
+    const maxScrollLeft = Math.max(0, timeline.scrollWidth - timeline.clientWidth)
+    const nextScrollLeft = Math.min(Math.max(0, todayLeft - timeline.clientWidth / 2), maxScrollLeft)
+    timeline.scrollLeft = nextScrollLeft
+    setTimelineScrollLeft(nextScrollLeft)
+  }, [showTodayMarker, todayLeft, timelineWidth])
+
+  if (!hasRows) {
+    return (
+      <section className="section-surface gantt-panel" aria-labelledby="gantt-title">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">{copy.nav.gantt}</p>
+            <h2 id="gantt-title">{copy.ganttTitle}</h2>
+          </div>
+        </div>
+        <p className="empty-state">{copy.ganttEmpty}</p>
+      </section>
+    )
+  }
 
   const handleTimelineScroll = (event: UIEvent<HTMLDivElement>) => {
     setTimelineScrollLeft(event.currentTarget.scrollLeft)
@@ -162,6 +176,7 @@ export function GanttChart({ records, copy, language, onSelectVersion }: GanttCh
           <div className="gantt-left-header" />
           <div
             className="gantt-scroll"
+            ref={timelineScrollRef}
             style={{ '--gantt-width': `${timelineWidth}px`, '--day-width': `${dayWidth}px` } as CSSProperties}
             onScroll={handleTimelineScroll}
             onPointerDown={startTimelineDrag}
