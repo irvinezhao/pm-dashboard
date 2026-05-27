@@ -53,7 +53,7 @@ import {
   countRequirements,
   deleteRequirementFromTree,
   findFirstVersion,
-  findVersionLocation,
+  findVersionById,
   updateVersionTree,
   versionMatchesQuery,
 } from './lib/projectTree'
@@ -139,10 +139,7 @@ function App() {
   const editable = canEdit(userRole)
   const calendarYear = new Date().getFullYear()
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0]
-  const selectedVersionLocation =
-    findVersionLocation(projects, selectedVersionId) ??
-    (selectedProject.versions[0] ? { projectId: selectedProject.id, version: selectedProject.versions[0] } : null)
-  const selectedVersion = selectedVersionLocation?.version ?? null
+  const selectedVersion = findVersionById(selectedProject.versions, selectedVersionId) ?? findFirstVersion(selectedProject.versions)
 
   useEffect(() => {
     saveProjects(projects)
@@ -279,6 +276,7 @@ function App() {
     const project = projects.find((item) => item.id === projectId)
     setSelectedProjectId(projectId)
     setSelectedVersionId(findFirstVersion(project?.versions ?? [])?.id ?? '')
+    setStageFilter('all')
     setEditingProjectId(null)
     setEditingVersionId(null)
     setEditingRequirementTarget(null)
@@ -1324,21 +1322,9 @@ function App() {
       </>
     ),
     projects: (
-      <section className="single-view-grid">
+      <section className="two-view-grid">
         {projectPanel}
-        <section className="section-surface view-panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">{t.requirementOverview}</p>
-              <h2>{selectedProject.name}</h2>
-            </div>
-          </div>
-          <div className="project-summary roomy">
-            <InfoLine label={t.versionCount} value={selectedProjectVersionRecords.length.toString()} />
-            <InfoLine label={t.requirements} value={selectedProjectRequirementRecords.length.toString()} />
-            <InfoLine label={t.currentStage} value={selectedVersion ? t.stageMap[selectedVersion.stage] : '-'} />
-          </div>
-        </section>
+        {versionPanel}
       </section>
     ),
     versions: (
