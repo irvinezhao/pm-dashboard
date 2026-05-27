@@ -215,7 +215,7 @@ export function HolidayCalendar({
                               {record.version.name}
                             </button>
                           ))}
-                          {dayPlannedProductions.slice(0, 1).map((record) => (
+                          {dayPlannedProductions.slice(0, 2).map((record) => (
                             <button
                               className={hasConflict ? 'calendar-event planned-production conflict' : 'calendar-event planned-production'}
                               type="button"

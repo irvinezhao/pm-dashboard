@@ -174,14 +174,15 @@ function App() {
   )
 
   const plannedProductionDateRecords = useMemo<ProductionDateRecord[]>(() => {
-    const selectedRecord = allVersionRecords.find((record) => record.version.id === selectedVersion?.id)
-
-    if (!selectedRecord || !selectedRecord.version.endDate.startsWith(`${calendarYear}-`)) {
-      return []
-    }
-
-    return [{ ...selectedRecord, date: selectedRecord.version.endDate }]
-  }, [allVersionRecords, calendarYear, selectedVersion?.id])
+    return allVersionRecords
+      .filter(
+        (record) =>
+          record.depth === 0 &&
+          (record.version.stage === 'development' || record.version.stage === 'uat') &&
+          record.version.endDate.startsWith(`${calendarYear}-`),
+      )
+      .map((record) => ({ ...record, date: record.version.endDate }))
+  }, [allVersionRecords, calendarYear])
 
   const teamLoads = useMemo(() => {
     const grouped = new Map<string, RequirementRecord[]>()
