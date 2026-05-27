@@ -753,7 +753,7 @@ h2 {
 }
 
 .calendar-day.has-events {
-  cursor: help;
+  cursor: default;
 }
 
 .calendar-day:nth-child(7n) {
