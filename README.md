@@ -1,4 +1,4 @@
-# PM dashboard
+# PM Dashboard
 
 A local-first project management dashboard for projects, versions, subversions, requirements, and delivery ownership.
 

@@ -21,9 +21,11 @@ import {
 } from 'lucide-react'
 import { InfoLine } from './components/InfoLine'
 import { GanttChart } from './components/GanttChart'
+import { HolidayCalendar } from './components/HolidayCalendar'
 import { MetricCard } from './components/MetricCard'
 import { navigation } from './config/navigation'
-import { emptyProjectDraft, emptyRequirementDraft, emptyVersionDraft, stages, today } from './constants'
+import { emptyFreezePeriodDraft, emptyProjectDraft, emptyRequirementDraft, emptyVersionDraft, stages, today } from './constants'
+import { getHolidayEvents } from './data/holidayCalendar'
 import { initialProjects } from './data/initialProjects'
 import { copy } from './i18n/copy'
 import { makeId } from './lib/id'
@@ -39,10 +41,13 @@ import {
   updateVersionTree,
   versionMatchesQuery,
 } from './lib/projectTree'
-import { loadStoredProjects, saveProjects } from './lib/storage'
+import { loadStoredFreezePeriods, loadStoredProjects, saveFreezePeriods, saveProjects } from './lib/storage'
 import type {
   EditingRequirementTarget,
+  FreezePeriod,
+  FreezePeriodDraft,
   Lang,
+  ProductionDateRecord,
   Project,
   ProjectDraft,
   Requirement,
@@ -58,6 +63,7 @@ import type {
 import './App.css'
 
 const initialStoredProjects = loadStoredProjects()
+const initialStoredFreezePeriods = loadStoredFreezePeriods()
 
 function App() {
   const [language, setLanguage] = useState<Lang>('zh')
@@ -65,10 +71,12 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [userRole] = useState<UserRole>('owner')
   const [projects, setProjects] = useState<Project[]>(initialStoredProjects)
+  const [freezePeriods, setFreezePeriods] = useState<FreezePeriod[]>(initialStoredFreezePeriods)
   const [selectedProjectId, setSelectedProjectId] = useState(initialStoredProjects[0].id)
   const [selectedVersionId, setSelectedVersionId] = useState(initialStoredProjects[0].versions[0]?.id ?? '')
   const [stageFilter, setStageFilter] = useState<Stage | 'all'>('all')
   const [query, setQuery] = useState('')
+  const [freezeDraft, setFreezeDraft] = useState<FreezePeriodDraft>(emptyFreezePeriodDraft)
   const [projectDraft, setProjectDraft] = useState<ProjectDraft>(emptyProjectDraft)
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false)
@@ -87,6 +95,7 @@ function App() {
 
   const t = copy[language]
   const editable = canEdit(userRole)
+  const calendarYear = new Date().getFullYear()
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? projects[0]
   const selectedVersionLocation =
     findVersionLocation(projects, selectedVersionId) ??
@@ -96,6 +105,10 @@ function App() {
   useEffect(() => {
     saveProjects(projects)
   }, [projects])
+
+  useEffect(() => {
+    saveFreezePeriods(freezePeriods)
+  }, [freezePeriods])
 
   const portfolioStats = useMemo(() => {
     const countVersions = (versions: Version[]): number =>
@@ -116,6 +129,7 @@ function App() {
   }, [projects])
 
   const allVersionRecords = useMemo(() => collectVersionRecords(projects), [projects])
+  const holidayEvents = useMemo(() => getHolidayEvents(calendarYear), [calendarYear])
   const selectedProjectVersionRecords = useMemo(() => collectVersionRecords(projects, selectedProject.id), [projects, selectedProject.id])
   const allRequirementRecords = useMemo(() => collectRequirementRecords(projects), [projects])
   const selectedProjectRequirementRecords = useMemo(
@@ -148,6 +162,14 @@ function App() {
       return searchable.includes(normalizedQuery)
     })
   }, [allRequirementRecords, query])
+
+  const productionDateRecords = useMemo<ProductionDateRecord[]>(
+    () =>
+      allVersionRecords
+        .filter((record) => record.version.stage === 'production' && record.version.endDate.startsWith(`${calendarYear}-`))
+        .map((record) => ({ ...record, date: record.version.endDate })),
+    [allVersionRecords, calendarYear],
+  )
 
   const teamLoads = useMemo(() => {
     const grouped = new Map<string, RequirementRecord[]>()
@@ -206,9 +228,43 @@ function App() {
     setStageFilter('all')
     setQuery('')
     setExpandedVersionIds(new Set())
+    setFreezePeriods([])
+    setFreezeDraft(emptyFreezePeriodDraft)
     resetProjectDraft()
     resetVersionDraft()
     resetRequirementDraft()
+  }
+
+  const addFreezePeriod = () => {
+    if (!editable) {
+      return
+    }
+
+    if (!freezeDraft.name.trim() || !freezeDraft.startDate || !freezeDraft.endDate) {
+      return
+    }
+
+    const startDate = freezeDraft.startDate <= freezeDraft.endDate ? freezeDraft.startDate : freezeDraft.endDate
+    const endDate = freezeDraft.endDate >= freezeDraft.startDate ? freezeDraft.endDate : freezeDraft.startDate
+
+    setFreezePeriods((currentPeriods) => [
+      {
+        id: makeId('freeze-period'),
+        name: freezeDraft.name.trim(),
+        startDate,
+        endDate,
+      },
+      ...currentPeriods,
+    ])
+    setFreezeDraft(emptyFreezePeriodDraft)
+  }
+
+  const deleteFreezePeriod = (id: string) => {
+    if (!editable) {
+      return
+    }
+
+    setFreezePeriods((currentPeriods) => currentPeriods.filter((period) => period.id !== id))
   }
 
   const updateSelectedProject = (updater: (project: Project) => Project) => {
@@ -1046,12 +1102,30 @@ function App() {
     />
   )
 
+  const calendarPanel = (
+    <HolidayCalendar
+      year={calendarYear}
+      holidays={holidayEvents}
+      freezePeriods={freezePeriods}
+      freezeDraft={freezeDraft}
+      copy={t}
+      language={language}
+      editable={editable}
+      productionRecords={productionDateRecords}
+      onFreezeDraftChange={setFreezeDraft}
+      onAddFreezePeriod={addFreezePeriod}
+      onDeleteFreezePeriod={deleteFreezePeriod}
+      onSelectVersion={(record) => selectVersionRecord(record, 'versions')}
+    />
+  )
+
   const viewIntroMap: Record<ViewKey, { eyebrow: string; title: string; copy: string }> = {
     dashboard: { eyebrow: t.heroEyebrow, title: t.heroTitle, copy: t.heroCopy },
     projects: { eyebrow: t.nav.projects, title: t.projectViewTitle, copy: t.projectViewCopy },
     versions: { eyebrow: t.nav.versions, title: t.versionViewTitle, copy: t.versionViewCopy },
     requirements: { eyebrow: t.nav.requirements, title: t.requirementViewTitle, copy: t.requirementViewCopy },
     gantt: { eyebrow: t.nav.gantt, title: t.ganttViewTitle, copy: t.ganttViewCopy },
+    calendar: { eyebrow: t.nav.calendar, title: t.calendarViewTitle, copy: t.calendarViewCopy },
     team: { eyebrow: t.nav.team, title: t.teamViewTitle, copy: t.teamViewCopy },
     settings: { eyebrow: t.nav.settings, title: t.settingsViewTitle, copy: t.settingsViewCopy },
   }
@@ -1101,6 +1175,7 @@ function App() {
       </section>
     ),
     gantt: ganttPanel,
+    calendar: calendarPanel,
     team: teamPanel,
     settings: settingsPanel,
   } satisfies Record<ViewKey, React.ReactNode>
@@ -1113,7 +1188,7 @@ function App() {
             <Command size={18} />
           </div>
           <div>
-            <strong>PM dashboard</strong>
+            <strong>PM Dashboard</strong>
             <span>{t.subtitle}</span>
           </div>
         </div>

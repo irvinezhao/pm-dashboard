@@ -1,7 +1,14 @@
-import type { ProjectDraft, RequirementDraft, Stage, VersionDraft } from './types'
+import type { FreezePeriodDraft, ProjectDraft, RequirementDraft, Stage, VersionDraft } from './types'
 
-export const today = '2026-05-26'
+const getLocalDateKey = () => {
+  const date = new Date()
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return localDate.toISOString().slice(0, 10)
+}
+
+export const today = getLocalDateKey()
 export const storageKey = 'pm-dashboard-projects-v2'
+export const freezePeriodStorageKey = 'pm-dashboard-freeze-periods-v1'
 export const importedProjectIds: string[] = []
 export const stages: Stage[] = ['development', 'uat', 'production']
 
@@ -23,4 +30,10 @@ export const emptyRequirementDraft: RequirementDraft = {
   title: '',
   link: '',
   owner: '',
+}
+
+export const emptyFreezePeriodDraft: FreezePeriodDraft = {
+  name: '',
+  startDate: today,
+  endDate: today,
 }

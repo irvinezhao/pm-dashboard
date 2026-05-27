@@ -5,7 +5,7 @@ const dayMs = 24 * 60 * 60 * 1000
 
 type GanttChartProps = {
   records: VersionRecord[]
-  copy: Pick<AppCopy, 'nav' | 'ganttTitle' | 'ganttHint' | 'ganttEmpty' | 'subVersionOf' | 'stageMap'>
+  copy: Pick<AppCopy, 'nav' | 'ganttTitle' | 'ganttHint' | 'ganttEmpty' | 'subVersionOf' | 'stageMap' | 'todayLabel'>
   language: Lang
   onSelectVersion: (record: VersionRecord) => void
 }
@@ -36,6 +36,11 @@ const formatDate = (date: Date, language: Lang) => {
   const month = date.getUTCMonth() + 1
   const day = date.getUTCDate()
   return language === 'zh' ? `${month}月${day}日` : `${month}/${day}`
+}
+
+const getTodayDate = () => {
+  const date = new Date()
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
 }
 
 export function GanttChart({ records, copy, language, onSelectVersion }: GanttChartProps) {
@@ -104,6 +109,9 @@ export function GanttChart({ records, copy, language, onSelectVersion }: GanttCh
       left: offset * dayWidth,
     }
   })
+  const todayDate = getTodayDate()
+  const showTodayMarker = todayDate >= chartStart && todayDate <= chartEnd
+  const todayLeft = diffDays(chartStart, todayDate) * dayWidth
 
   const handleTimelineScroll = (event: UIEvent<HTMLDivElement>) => {
     setTimelineScrollLeft(event.currentTarget.scrollLeft)
@@ -162,6 +170,11 @@ export function GanttChart({ records, copy, language, onSelectVersion }: GanttCh
             onPointerCancel={stopTimelineDrag}
           >
             <div className="gantt-axis" style={{ width: timelineWidth }}>
+              {showTodayMarker && (
+                <span className="gantt-today-axis" style={{ left: todayLeft }}>
+                  {copy.todayLabel}
+                </span>
+              )}
               {ticks.map((tick) => (
                 <span className="gantt-tick" style={{ left: tick.left }} key={tick.date.toISOString()}>
                   {formatDate(tick.date, language)}
@@ -187,6 +200,7 @@ export function GanttChart({ records, copy, language, onSelectVersion }: GanttCh
                 </div>
                 <div className="gantt-track-window">
                   <div className="gantt-track" style={trackStyle}>
+                    {showTodayMarker && <span className="gantt-today-line" style={{ left: todayLeft }} />}
                     <button
                       className={`gantt-bar ${row.record.version.stage}`}
                       type="button"

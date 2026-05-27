@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  CalendarRange,
   ChartGantt,
   CopyPlus,
   LayoutDashboard,
@@ -15,6 +16,7 @@ export const navigation: Array<{ key: ViewKey; icon: typeof LayoutDashboard }> =
   { key: 'versions', icon: CalendarDays },
   { key: 'requirements', icon: ListChecks },
   { key: 'gantt', icon: ChartGantt },
+  { key: 'calendar', icon: CalendarRange },
   { key: 'team', icon: UsersRound },
   { key: 'settings', icon: Settings },
 ]

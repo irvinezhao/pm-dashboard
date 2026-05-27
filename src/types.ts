@@ -1,6 +1,8 @@
 export type Lang = 'en' | 'zh'
 export type Stage = 'versionStart' | 'development' | 'uat' | 'production'
-export type ViewKey = 'dashboard' | 'projects' | 'versions' | 'requirements' | 'gantt' | 'team' | 'settings'
+export type ViewKey = 'dashboard' | 'projects' | 'versions' | 'requirements' | 'gantt' | 'calendar' | 'team' | 'settings'
+export type HolidayCountry = 'cn' | 'id'
+export type HolidayKind = 'public' | 'jointLeave'
 
 export type Requirement = {
   id: string
@@ -71,6 +73,30 @@ export type RequirementRecord = VersionRecord & {
   requirement: Requirement
 }
 
+export type HolidayEvent = {
+  date: string
+  country: HolidayCountry
+  kind: HolidayKind
+  name: string
+}
+
+export type FreezePeriod = {
+  id: string
+  name: string
+  startDate: string
+  endDate: string
+}
+
+export type FreezePeriodDraft = {
+  name: string
+  startDate: string
+  endDate: string
+}
+
+export type ProductionDateRecord = VersionRecord & {
+  date: string
+}
+
 export type AppCopy = {
   nav: Record<ViewKey, string>
   subtitle: string
@@ -134,6 +160,26 @@ export type AppCopy = {
   ganttTitle: string
   ganttHint: string
   ganttEmpty: string
+  todayLabel: string
+  calendarViewTitle: string
+  calendarViewCopy: string
+  holidayCalendarTitle: string
+  holidayCalendarHint: string
+  freezeConfig: string
+  freezePeriod: string
+  freezePeriodName: string
+  freezeStart: string
+  freezeEnd: string
+  addFreezePeriod: string
+  deleteFreezePeriod: string
+  noFreezePeriods: string
+  publicHoliday: string
+  jointLeave: string
+  chinaHoliday: string
+  indonesiaHoliday: string
+  productionDate: string
+  productionConflict: string
+  freezeUnavailable: string
   teamViewTitle: string
   teamViewCopy: string
   settingsViewTitle: string
